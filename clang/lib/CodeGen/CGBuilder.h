@@ -254,8 +254,15 @@ public:
     CharUnits EltSize =
         CharUnits::fromQuantity(DL.getTypeAllocSize(ElTy->getElementType()));
 
-    return Address(
+    if (!CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return Address(
         CreateInBoundsGEP(Addr.getElementType(), Addr.getPointer(),
+                          {getSize(CharUnits::Zero()), getSize(Index)}, Name),
+        ElTy->getElementType(),
+        Addr.getAlignment().alignmentAtOffset(Index * EltSize));
+    else
+      return Address(
+        CreateGEP(Addr.getElementType(), Addr.getPointer(),
                           {getSize(CharUnits::Zero()), getSize(Index)}, Name),
         ElTy->getElementType(),
         Addr.getAlignment().alignmentAtOffset(Index * EltSize));
@@ -272,7 +279,13 @@ public:
     const llvm::DataLayout &DL = BB->getParent()->getParent()->getDataLayout();
     CharUnits EltSize = CharUnits::fromQuantity(DL.getTypeAllocSize(ElTy));
 
-    return Address(CreateInBoundsGEP(Addr.getElementType(), Addr.getPointer(),
+    if (!CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return Address(CreateInBoundsGEP(Addr.getElementType(), Addr.getPointer(),
+                                     getSize(Index), Name),
+                   ElTy,
+                   Addr.getAlignment().alignmentAtOffset(Index * EltSize));
+    else
+      return Address(CreateGEP(Addr.getElementType(), Addr.getPointer(),
                                      getSize(Index), Name),
                    ElTy,
                    Addr.getAlignment().alignmentAtOffset(Index * EltSize));
@@ -314,7 +327,13 @@ public:
   Address CreateConstInBoundsByteGEP(Address Addr, CharUnits Offset,
                                      const llvm::Twine &Name = "") {
     assert(Addr.getElementType() == TypeCache.Int8Ty);
-    return Address(CreateInBoundsGEP(Addr.getElementType(), Addr.getPointer(),
+    if (!CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return Address(CreateInBoundsGEP(Addr.getElementType(), Addr.getPointer(),
+                                     getSize(Offset), Name),
+                   Addr.getElementType(),
+                   Addr.getAlignment().alignmentAtOffset(Offset));
+    else
+      return Address(CreateGEP(Addr.getElementType(), Addr.getPointer(),
                                      getSize(Offset), Name),
                    Addr.getElementType(),
                    Addr.getAlignment().alignmentAtOffset(Offset));
@@ -333,8 +352,11 @@ public:
                                      const llvm::Twine &Name = "") {
     const llvm::DataLayout &DL = BB->getParent()->getParent()->getDataLayout();
 
-    auto *GEP = cast<llvm::GetElementPtrInst>(CreateConstInBoundsGEP2_32(
-        Addr.getElementType(), Addr.getPointer(), Idx0, Idx1, Name));
+    auto *GEP = !CGM->getCodeGenOpts().DropInboundsFromGEP
+      ? cast<llvm::GetElementPtrInst>(CreateConstInBoundsGEP2_32(
+          Addr.getElementType(), Addr.getPointer(), Idx0, Idx1, Name))
+      : cast<llvm::GetElementPtrInst>(CreateConstGEP2_32(
+          Addr.getElementType(), Addr.getPointer(), Idx0, Idx1, Name));
     llvm::APInt Offset(
         DL.getIndexSizeInBits(Addr.getType()->getPointerAddressSpace()), 0,
         /*isSigned=*/true);
