@@ -476,7 +476,7 @@ void CodeGenFunction::PopCleanupBlocks(
       InsertBefore = Invoke->getNormalDest()->getFirstInsertionPt();
     else
       InsertBefore = std::next(Inst->getIterator());
-    CGBuilderTy(CGM, &*InsertBefore).CreateStore(Inst, Tmp);
+    CGBuilderTy(&CGM, CGM, &*InsertBefore).CreateStore(Inst, Tmp);
 
     // Reload the value at the current insertion point.
     *ReloadedValue = Builder.CreateLoad(Tmp);

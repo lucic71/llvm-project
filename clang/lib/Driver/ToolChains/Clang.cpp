@@ -5165,6 +5165,35 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.addOptOutFlag(CmdArgs, options::OPT_fdelete_null_pointer_checks,
                      options::OPT_fno_delete_null_pointer_checks);
 
+  if (!Args.hasFlag(options::OPT_fconstrain_shift_value,
+                   options::OPT_fno_constrain_shift_value, false))
+    CmdArgs.push_back("-fno-constrain-shift-value");
+  else
+    CmdArgs.push_back("-fconstrain-shift-value");
+
+  if (Args.hasFlag(options::OPT_fconstrain_bool_value,
+                   options::OPT_fno_constrain_bool_value, true))
+    CmdArgs.push_back("-fconstrain-bool-value");
+  else
+    CmdArgs.push_back("-fno-constrain-bool-value");
+
+  if (!Args.hasFlag(options::OPT_fdrop_inbounds_from_gep,
+                   options::OPT_fno_drop_inbounds_from_gep, false))
+    CmdArgs.push_back("-fno-drop-inbounds-from-gep");
+  else
+    CmdArgs.push_back("-fdrop-inbounds-from-gep");
+
+  if (!Args.hasFlag(options::OPT_fcheck_div_rem_overflow,
+                   options::OPT_fno_check_div_rem_overflow, false))
+    CmdArgs.push_back("-fno-check-div-rem-overflow");
+  else
+    CmdArgs.push_back("-fcheck-div-rem-overflow");
+
+  if (!Args.hasFlag(options::OPT_fuse_default_alignment,
+                   options::OPT_fno_use_default_alignment, true))
+    CmdArgs.push_back("-fno-use-default-alignment");
+  else
+    CmdArgs.push_back("-fuse-default-alignment");
   // LLVM Code Generator Options.
 
   for (const Arg *A : Args.filtered(options::OPT_frewrite_map_file_EQ)) {

@@ -11,6 +11,7 @@
 
 #include "Address.h"
 #include "CodeGenTypeCache.h"
+#include "CodeGenModule.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
@@ -46,18 +47,30 @@ class CGBuilderTy : public CGBuilderBaseTy {
   /// Storing a reference to the type cache here makes it a lot easier
   /// to build natural-feeling, target-specific IR.
   const CodeGenTypeCache &TypeCache;
+  const CodeGenModule *CGM;
 
 public:
   CGBuilderTy(const CodeGenTypeCache &TypeCache, llvm::LLVMContext &C)
-      : CGBuilderBaseTy(C), TypeCache(TypeCache) {}
+      : CGBuilderBaseTy(C), TypeCache(TypeCache), CGM(nullptr) {}
   CGBuilderTy(const CodeGenTypeCache &TypeCache, llvm::LLVMContext &C,
               const llvm::ConstantFolder &F,
               const CGBuilderInserterTy &Inserter)
-      : CGBuilderBaseTy(C, F, Inserter), TypeCache(TypeCache) {}
+      : CGBuilderBaseTy(C, F, Inserter), TypeCache(TypeCache), CGM(nullptr) {}
   CGBuilderTy(const CodeGenTypeCache &TypeCache, llvm::Instruction *I)
-      : CGBuilderBaseTy(I), TypeCache(TypeCache) {}
+      : CGBuilderBaseTy(I), TypeCache(TypeCache), CGM(nullptr) {}
   CGBuilderTy(const CodeGenTypeCache &TypeCache, llvm::BasicBlock *BB)
-      : CGBuilderBaseTy(BB), TypeCache(TypeCache) {}
+      : CGBuilderBaseTy(BB), TypeCache(TypeCache), CGM(nullptr) {}
+
+  CGBuilderTy(const CodeGenModule *CGM, const CodeGenTypeCache &TypeCache, llvm::LLVMContext &C)
+      : CGBuilderBaseTy(C), TypeCache(TypeCache), CGM(CGM) {}
+  CGBuilderTy(const CodeGenModule *CGM, const CodeGenTypeCache &TypeCache, llvm::LLVMContext &C,
+              const llvm::ConstantFolder &F,
+              const CGBuilderInserterTy &Inserter)
+      : CGBuilderBaseTy(C, F, Inserter), TypeCache(TypeCache), CGM(CGM) {}
+  CGBuilderTy(const CodeGenModule *CGM, const CodeGenTypeCache &TypeCache, llvm::Instruction *I)
+      : CGBuilderBaseTy(I), TypeCache(TypeCache), CGM(CGM) {}
+  CGBuilderTy(const CodeGenModule *CGM, const CodeGenTypeCache &TypeCache, llvm::BasicBlock *BB)
+      : CGBuilderBaseTy(BB), TypeCache(TypeCache), CGM(CGM) {}
 
   llvm::ConstantInt *getSize(CharUnits N) {
     return llvm::ConstantInt::get(TypeCache.SizeTy, N.getQuantity());
@@ -69,19 +82,33 @@ public:
   // Note that we intentionally hide the CreateLoad APIs that don't
   // take an alignment.
   llvm::LoadInst *CreateLoad(Address Addr, const llvm::Twine &Name = "") {
-    return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
                              Addr.getAlignment().getAsAlign(), Name);
+    else
+      return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
+                             llvm::MaybeAlign(1), Name);
   }
   llvm::LoadInst *CreateLoad(Address Addr, const char *Name) {
     // This overload is required to prevent string literals from
     // ending up in the IsVolatile overload.
-    return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
                              Addr.getAlignment().getAsAlign(), Name);
+    else
+      return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
+                             llvm::MaybeAlign(1), Name);
   }
   llvm::LoadInst *CreateLoad(Address Addr, bool IsVolatile,
                              const llvm::Twine &Name = "") {
-    return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
+    
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
                              Addr.getAlignment().getAsAlign(), IsVolatile,
+                             Name);
+    else
+      return CreateAlignedLoad(Addr.getElementType(), Addr.getPointer(),
+                             llvm::MaybeAlign(1), IsVolatile,
                              Name);
   }
 
@@ -91,22 +118,32 @@ public:
                                     const llvm::Twine &Name = "") {
     assert(llvm::cast<llvm::PointerType>(Addr->getType())
                ->isOpaqueOrPointeeTypeMatches(Ty));
-    return CreateAlignedLoad(Ty, Addr, Align.getAsAlign(), Name);
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateAlignedLoad(Ty, Addr, Align.getAsAlign(), Name);
+    else
+      return CreateAlignedLoad(Ty, Addr, llvm::MaybeAlign(1), Name);
   }
 
   // Note that we intentionally hide the CreateStore APIs that don't
   // take an alignment.
   llvm::StoreInst *CreateStore(llvm::Value *Val, Address Addr,
                                bool IsVolatile = false) {
-    return CreateAlignedStore(Val, Addr.getPointer(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateAlignedStore(Val, Addr.getPointer(),
                               Addr.getAlignment().getAsAlign(), IsVolatile);
+    else
+      return CreateAlignedStore(Val, Addr.getPointer(),
+                              llvm::MaybeAlign(1), IsVolatile);
   }
 
   using CGBuilderBaseTy::CreateAlignedStore;
   llvm::StoreInst *CreateAlignedStore(llvm::Value *Val, llvm::Value *Addr,
                                       CharUnits Align,
                                       bool IsVolatile = false) {
-    return CreateAlignedStore(Val, Addr, Align.getAsAlign(), IsVolatile);
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateAlignedStore(Val, Addr, Align.getAsAlign(), IsVolatile);
+    else
+      return CreateAlignedStore(Val, Addr, llvm::MaybeAlign(1), IsVolatile);
   }
 
   // FIXME: these "default-aligned" APIs should be removed,
@@ -311,44 +348,73 @@ public:
   using CGBuilderBaseTy::CreateMemCpy;
   llvm::CallInst *CreateMemCpy(Address Dest, Address Src, llvm::Value *Size,
                                bool IsVolatile = false) {
-    return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
                         Src.getPointer(), Src.getAlignment().getAsAlign(), Size,
+                        IsVolatile);
+    else
+      return CreateMemCpy(Dest.getPointer(), llvm::MaybeAlign(1),
+                        Src.getPointer(), llvm::MaybeAlign(1), Size,
                         IsVolatile);
   }
   llvm::CallInst *CreateMemCpy(Address Dest, Address Src, uint64_t Size,
                                bool IsVolatile = false) {
-    return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
                         Src.getPointer(), Src.getAlignment().getAsAlign(), Size,
+                        IsVolatile);
+    else
+      return CreateMemCpy(Dest.getPointer(), llvm::MaybeAlign(1),
+                        Src.getPointer(), llvm::MaybeAlign(1), Size,
                         IsVolatile);
   }
 
   using CGBuilderBaseTy::CreateMemCpyInline;
   llvm::CallInst *CreateMemCpyInline(Address Dest, Address Src, uint64_t Size) {
-    return CreateMemCpyInline(
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateMemCpyInline(
         Dest.getPointer(), Dest.getAlignment().getAsAlign(), Src.getPointer(),
         Src.getAlignment().getAsAlign(), getInt64(Size));
+    else
+      return CreateMemCpyInline(
+        Dest.getPointer(), llvm::MaybeAlign(1), Src.getPointer(),
+        llvm::MaybeAlign(1), getInt64(Size));
   }
 
   using CGBuilderBaseTy::CreateMemMove;
   llvm::CallInst *CreateMemMove(Address Dest, Address Src, llvm::Value *Size,
                                 bool IsVolatile = false) {
-    return CreateMemMove(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateMemMove(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
                          Src.getPointer(), Src.getAlignment().getAsAlign(),
+                         Size, IsVolatile);
+    else
+      return CreateMemMove(Dest.getPointer(), llvm::MaybeAlign(1),
+                         Src.getPointer(), llvm::MaybeAlign(1),
                          Size, IsVolatile);
   }
 
   using CGBuilderBaseTy::CreateMemSet;
   llvm::CallInst *CreateMemSet(Address Dest, llvm::Value *Value,
                                llvm::Value *Size, bool IsVolatile = false) {
-    return CreateMemSet(Dest.getPointer(), Value, Size,
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateMemSet(Dest.getPointer(), Value, Size,
                         Dest.getAlignment().getAsAlign(), IsVolatile);
+    else
+      return CreateMemSet(Dest.getPointer(), Value, Size,
+                        llvm::MaybeAlign(1), IsVolatile);
   }
 
   using CGBuilderBaseTy::CreateMemSetInline;
   llvm::CallInst *CreateMemSetInline(Address Dest, llvm::Value *Value,
                                      uint64_t Size) {
-    return CreateMemSetInline(Dest.getPointer(),
+    if (CGM->getCodeGenOpts().UseDefaultAlignment)
+      return CreateMemSetInline(Dest.getPointer(),
                               Dest.getAlignment().getAsAlign(), Value,
+                              getInt64(Size));
+    else
+      return CreateMemSetInline(Dest.getPointer(),
+                              llvm::MaybeAlign(1), Value,
                               getInt64(Size));
   }
 

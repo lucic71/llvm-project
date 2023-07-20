@@ -1862,7 +1862,7 @@ void CodeGenFunction::EmitCapturedLocals(CodeGenFunction &ParentCGF,
   }
 
   llvm::Value *EntryFP = nullptr;
-  CGBuilderTy Builder(CGM, AllocaInsertPt);
+  CGBuilderTy Builder(&CGM, CGM, AllocaInsertPt);
   if (IsFilter && CGM.getTarget().getTriple().getArch() == llvm::Triple::x86) {
     // 32-bit SEH filters need to be careful about FP recovery.  The end of the
     // EH registration is passed in as the EBP physical register.  We can
