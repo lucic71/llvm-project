@@ -323,6 +323,14 @@ public:
         Addr.getAlignment().alignmentOfArrayElement(EltSize));
   }
 
+  llvm::Value *CreateInBoundsGEP(llvm::Type *Ty, llvm::Value *Ptr,
+		  llvm::ArrayRef< llvm::Value * > IdxList, const llvm::Twine &Name="") {
+    if (CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return CreateGEP(Ty, Ptr, IdxList, Name);
+    else
+      return CGBuilderBaseTy::CreateInBoundsGEP(Ty, Ptr, IdxList, Name);
+  }
+
   /// Given a pointer to i8, adjust it by a given constant offset.
   Address CreateConstInBoundsByteGEP(Address Addr, CharUnits Offset,
                                      const llvm::Twine &Name = "") {
