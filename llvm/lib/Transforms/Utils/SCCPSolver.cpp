@@ -31,6 +31,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "sccp"
 
+static cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(false));
+
 // The maximum number of range extensions allowed for operations requiring
 // widening.
 static const unsigned MaxNumRangeExtensions = 10;
@@ -231,7 +233,12 @@ bool SCCPSolver::removeNonFeasibleEdges(BasicBlock *BB, DomTreeUpdater &DTU,
         Updates.push_back({DominatorTree::Delete, BB, Succ});
     }
     TI->eraseFromParent();
-    new UnreachableInst(BB->getContext(), BB);
+    Instruction* unreachableInst = new UnreachableInst(BB->getContext(), BB);
+    if (TrapOnUndefBr) {
+      Function *TrapFn =
+         Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+      CallInst::Create(TrapFn, "", unreachableInst);
+    }
     DTU.applyUpdatesPermissive(Updates);
   } else if (FeasibleSuccessors.size() == 1) {
     // Replace with an unconditional branch to the only feasible successor.
@@ -265,7 +272,13 @@ bool SCCPSolver::removeNonFeasibleEdges(BasicBlock *BB, DomTreeUpdater &DTU,
         NewUnreachableBB =
             BasicBlock::Create(DefaultDest->getContext(), "default.unreachable",
                                DefaultDest->getParent(), DefaultDest);
-        new UnreachableInst(DefaultDest->getContext(), NewUnreachableBB);
+        Instruction* unreachableInst = new UnreachableInst(DefaultDest->getContext(), NewUnreachableBB);
+        /* TODO: when is this code triggered? The test suite does not cover this case */
+        if (TrapOnUndefBr) {
+          Function *TrapFn =
+             Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+          CallInst::Create(TrapFn, "", unreachableInst);
+        }
       }
 
       SI->setDefaultDest(NewUnreachableBB);
