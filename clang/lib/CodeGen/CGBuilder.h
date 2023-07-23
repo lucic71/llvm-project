@@ -355,6 +355,38 @@ public:
                    Addr.getAlignment().alignmentAtOffset(Offset));
   }
 
+  llvm::Value *CreateConstInBoundsGEP1_32(llvm::Type *Ty, llvm::Value *Ptr, unsigned Idx0,
+    const llvm::Twine &Name="") {
+    if (CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return CreateConstGEP1_32(Ty, Ptr, Idx0, Name);
+    else
+      return CGBuilderBaseTy::CreateConstInBoundsGEP1_32(Ty, Ptr, Idx0, Name);
+  }
+
+  llvm::Value *CreateConstInBoundsGEP2_32(llvm::Type *Ty, llvm::Value *Ptr, unsigned Idx0,
+    unsigned Idx1, const llvm::Twine &Name="") {
+    if (CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return CreateConstGEP2_32(Ty, Ptr, Idx0, Idx1, Name);
+    else
+      return CGBuilderBaseTy::CreateConstInBoundsGEP2_32(Ty, Ptr, Idx0, Idx1, Name);
+  }
+
+  llvm::Value *CreateConstInBoundsGEP1_64(llvm::Type *Ty, llvm::Value *Ptr, uint64_t Idx0,
+    const llvm::Twine &Name="") {
+    if (CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return CreateConstGEP1_64(Ty, Ptr, Idx0, Name);
+    else
+      return CGBuilderBaseTy::CreateConstInBoundsGEP1_64(Ty, Ptr, Idx0, Name);
+  }
+
+  llvm::Value *CreateConstInBoundsGEP2_64(llvm::Type *Ty, llvm::Value *Ptr, uint64_t Idx0,
+    uint64_t Idx1, const llvm::Twine &Name="") {
+    if (CGM->getCodeGenOpts().DropInboundsFromGEP)
+      return CreateConstGEP2_64(Ty, Ptr, Idx0, Idx1, Name);
+    else
+      return CGBuilderBaseTy::CreateConstInBoundsGEP2_64(Ty, Ptr, Idx0, Idx1, Name);
+  }
+
   using CGBuilderBaseTy::CreateConstInBoundsGEP2_32;
   Address CreateConstInBoundsGEP2_32(Address Addr, unsigned Idx0, unsigned Idx1,
                                      const llvm::Twine &Name = "") {
