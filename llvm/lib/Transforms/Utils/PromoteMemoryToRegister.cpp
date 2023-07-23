@@ -53,6 +53,8 @@
 
 using namespace llvm;
 
+extern cl::opt<bool> ZeroUninitLoads;
+
 #define DEBUG_TYPE "mem2reg"
 
 STATISTIC(NumLocalPromoted, "Number of alloca's promoted within one block");
@@ -580,7 +582,10 @@ static bool promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
     if (I == StoresByIndex.begin()) {
       if (StoresByIndex.empty())
         // If there are no stores, the load takes the undef value.
-        ReplVal = UndefValue::get(LI->getType());
+        if (ZeroUninitLoads)
+          ReplVal = Constant::getNullValue(LI->getType());
+        else
+          ReplVal = UndefValue::get(LI->getType());
       else
         // There is no store before this load, bail out (load may be affected
         // by the following stores - see main comment).
@@ -738,7 +743,10 @@ void PromoteMem2Reg::run() {
   // been stored yet.  In this case, it will get this null value.
   RenamePassData::ValVector Values(Allocas.size());
   for (unsigned i = 0, e = Allocas.size(); i != e; ++i)
-    Values[i] = UndefValue::get(Allocas[i]->getAllocatedType());
+    if (ZeroUninitLoads)
+      Values[i] = Constant::getNullValue(Allocas[i]->getAllocatedType());
+    else
+      Values[i] = UndefValue::get(Allocas[i]->getAllocatedType());
 
   // When handling debug info, treat all incoming values as if they have unknown
   // locations until proven otherwise.

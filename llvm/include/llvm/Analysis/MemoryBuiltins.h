@@ -123,7 +123,7 @@ std::optional<APInt> getAllocSize(
 /// nullptr.
 Constant *getInitialValueOfAllocation(const Value *V,
                                       const TargetLibraryInfo *TLI,
-                                      Type *Ty);
+                                      Type *Ty, bool isUsedForLoad);
 
 /// If a function is part of an allocation family (e.g.
 /// malloc/realloc/calloc/free), return the identifier for its family

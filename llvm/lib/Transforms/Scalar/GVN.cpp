@@ -127,6 +127,8 @@ static cl::opt<uint32_t> MaxNumVisitedInsts(
     cl::desc("Max number of visited instructions when trying to find "
              "dominating value of select dependency (default = 100)"));
 
+extern cl::opt<bool> ZeroUninitLoads;
+
 struct llvm::GVNPass::Expression {
   uint32_t opcode;
   bool commutative = false;
@@ -1211,10 +1213,12 @@ GVNPass::AnalyzeLoadAvailability(LoadInst *Load, MemDepResult DepInfo,
   // Loading the alloca -> undef.
   // Loading immediately after lifetime begin -> undef.
   if (isa<AllocaInst>(DepInst) || isLifetimeStart(DepInst))
-    return AvailableValue::get(UndefValue::get(Load->getType()));
+    return ZeroUninitLoads
+      ? AvailableValue::get(Constant::getNullValue(Load->getType()))
+      : AvailableValue::get(UndefValue::get(Load->getType()));
 
   if (Constant *InitVal =
-          getInitialValueOfAllocation(DepInst, TLI, Load->getType()))
+          getInitialValueOfAllocation(DepInst, TLI, Load->getType(),/*isUsedForLoad*/ true))
     return AvailableValue::get(InitVal);
 
   if (StoreInst *S = dyn_cast<StoreInst>(DepInst)) {
