@@ -1616,10 +1616,10 @@ static bool getRangeForType(CodeGenFunction &CGF, QualType Ty,
   if (!IsBool && !IsRegularCPlusPlusEnum)
     return false;
 
-  if (IsBool) {
+  if (IsBool && CGF.CGM.getCodeGenOpts().ConstrainBoolValue) {
     Min = llvm::APInt(CGF.getContext().getTypeSize(Ty), 0);
     End = llvm::APInt(CGF.getContext().getTypeSize(Ty), 2);
-  } else {
+  } else if (IsRegularCPlusPlusEnum) {
     const EnumDecl *ED = ET->getDecl();
     ED->getValueRange(End, Min);
   }
