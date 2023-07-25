@@ -71,6 +71,7 @@ static cl::opt<bool> EnableRecPhiAnalysis("basic-aa-recphi", cl::Hidden,
 static cl::opt<bool> EnableSeparateStorageAnalysis("basic-aa-separate-storage",
                                                    cl::Hidden, cl::init(false));
 
+static cl::opt<bool> DisableOOBAnalysis("disable-oob-analysis", cl::init(false));
 cl::opt<bool> DisableObjectBasedAnalysis("disable-object-based-analysis", cl::init(false));
 
 /// SearchLimitReached / SearchTimes shows how often the limit of
@@ -1046,17 +1047,19 @@ AliasResult BasicAAResult::aliasGEP(
 
   // If an inbounds GEP would have to start from an out of bounds address
   // for the two to alias, then we can assume noalias.
-  if (*DecompGEP1.InBounds && DecompGEP1.VarIndices.empty() &&
-      V2Size.hasValue() && DecompGEP1.Offset.sge(V2Size.getValue()) &&
-      isBaseOfObject(DecompGEP2.Base))
-    return AliasResult::NoAlias;
-
-  if (isa<GEPOperator>(V2)) {
-    // Symmetric case to above.
-    if (*DecompGEP2.InBounds && DecompGEP1.VarIndices.empty() &&
-        V1Size.hasValue() && DecompGEP1.Offset.sle(-V1Size.getValue()) &&
-        isBaseOfObject(DecompGEP1.Base))
+  if (!DisableOOBAnalysis) {
+    if (*DecompGEP1.InBounds && DecompGEP1.VarIndices.empty() &&
+        V2Size.hasValue() && DecompGEP1.Offset.sge(V2Size.getValue()) &&
+        isBaseOfObject(DecompGEP2.Base))
       return AliasResult::NoAlias;
+
+    if (isa<GEPOperator>(V2)) {
+      // Symmetric case to above.
+      if (*DecompGEP2.InBounds && DecompGEP1.VarIndices.empty() &&
+          V1Size.hasValue() && DecompGEP1.Offset.sle(-V1Size.getValue()) &&
+          isBaseOfObject(DecompGEP1.Base))
+        return AliasResult::NoAlias;
+    }
   }
 
   // For GEPs with identical offsets, we can preserve the size and AAInfo
@@ -1122,11 +1125,15 @@ AliasResult BasicAAResult::aliasGEP(
       }
       return AR;
     }
-    return AliasResult::NoAlias;
+    if (!DisableOOBAnalysis)
+      return AliasResult::NoAlias;
   }
 
   // We need to know both acess sizes for all the following heuristics.
   if (!V1Size.hasValue() || !V2Size.hasValue())
+    return AliasResult::MayAlias;
+
+  if (DisableOOBAnalysis) // Skip everything until the end of the function
     return AliasResult::MayAlias;
 
   APInt GCD;
@@ -1503,7 +1510,7 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
       (isObjectSmallerThan(
           O1, getMinimalExtentFrom(*V2, V2Size, DL, NullIsValidLocation), DL,
           TLI, NullIsValidLocation)))
-    return AliasResult::NoAlias;
+    if (!DisableOOBAnalysis) return AliasResult::NoAlias;
 
   if (CtxI && EnableSeparateStorageAnalysis) {
     for (auto &AssumeVH : AC.assumptions()) {
