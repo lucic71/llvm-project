@@ -1,5 +1,21 @@
 # The LLVM Compiler Infrastructure
 
+## Implemented Flags
+
+Clang Flags:
+* -fconstrain-shift-value
+* -fno-constrain-bool-value
+* -fno-use-default-alignment
+* -fdrop-inbounds-from-gep
+* -fcheck-div-rem-overflow
+
+LLVM Flags:
+* -zero-uninit-loads
+* -trap-on-oob
+* -trap-on-undef-br
+* -disable-object-based-analysis
+* -disable-oob-analysis
+
 This directory and its sub-directories contain the source code for LLVM,
 a toolkit for the construction of highly optimized compilers,
 optimizers, and run-time environments.
