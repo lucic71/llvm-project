@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-pc-linux-gnu -emit-llvm -fcheck-div-rem-overflow -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-pc-linux-gnu -emit-llvm -fcheck-div-rem-overflow -O2 -o - %s | FileCheck %s
 
 int f(int x, int y) {
   // CHECK: %[[B0:.*]] = icmp eq i32 %[[D:.*]], 0
@@ -35,3 +35,4 @@ int g(int x, int y) {
 
   return x % y;
 }
+

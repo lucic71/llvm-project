@@ -3478,21 +3478,13 @@ Value *ScalarExprEmitter::EmitDiv(const BinOpInfo &Ops) {
   } else if (Ops.Ty->hasUnsignedIntegerRepresentation()) {
     if (CGF.CGM.getCodeGenOpts().CheckDivRemOverflow) {
       llvm::Value *Zero = llvm::Constant::getNullValue(ConvertType(Ops.Ty));
-      llvm::IntegerType *Ty = cast<llvm::IntegerType>(Zero->getType());
-      llvm::Value *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(Ty->getBitWidth()));
-      llvm::Value *NegOne = llvm::Constant::getAllOnesValue(Ty);
       
-      llvm::Value *RHSNotZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
-      llvm::Value *LHSIsIntMin = Builder.CreateICmpEQ(Ops.LHS, IntMin);
-      llvm::Value *RHSIsNegOne = Builder.CreateICmpEQ(Ops.RHS, NegOne);
-
-      llvm::Value *And = Builder.CreateAnd(LHSIsIntMin, RHSIsNegOne);
-      llvm::Value *Or = Builder.CreateOr(RHSNotZero, And);
+      llvm::Value *RHSIsZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
 
       llvm::BasicBlock *TrapBB = CGF.createBasicBlock("overflow.trap", CGF.CurFn);
       llvm::BasicBlock *DivBB = CGF.createBasicBlock("nooverflow", CGF.CurFn, Builder.GetInsertBlock()->getNextNode());
 
-      Builder.CreateCondBr(Or, TrapBB, DivBB);
+      Builder.CreateCondBr(RHSIsZero, TrapBB, DivBB);
 
       Builder.SetInsertPoint(TrapBB);
       CGF.EmitTrapCall(llvm::Intrinsic::trap);
@@ -3508,12 +3500,12 @@ Value *ScalarExprEmitter::EmitDiv(const BinOpInfo &Ops) {
       llvm::Value *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(Ty->getBitWidth()));
       llvm::Value *NegOne = llvm::Constant::getAllOnesValue(Ty);
       
-      llvm::Value *RHSNotZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
+      llvm::Value *RHSIsZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
       llvm::Value *LHSIsIntMin = Builder.CreateICmpEQ(Ops.LHS, IntMin);
       llvm::Value *RHSIsNegOne = Builder.CreateICmpEQ(Ops.RHS, NegOne);
 
       llvm::Value *And = Builder.CreateAnd(LHSIsIntMin, RHSIsNegOne);
-      llvm::Value *Or = Builder.CreateOr(RHSNotZero, And);
+      llvm::Value *Or = Builder.CreateOr(RHSIsZero, And);
 
       llvm::BasicBlock *TrapBB = CGF.createBasicBlock("overflow.trap", CGF.CurFn);
       llvm::BasicBlock *DivBB = CGF.createBasicBlock("nooverflow", CGF.CurFn, Builder.GetInsertBlock()->getNextNode());
@@ -3541,38 +3533,51 @@ Value *ScalarExprEmitter::EmitRem(const BinOpInfo &Ops) {
     EmitUndefinedBehaviorIntegerDivAndRemCheck(Ops, Zero, false);
   }
 
-  if (CGF.CGM.getCodeGenOpts().CheckDivRemOverflow) {
-    llvm::Value *Zero = llvm::Constant::getNullValue(ConvertType(Ops.Ty));
-    llvm::IntegerType *Ty = cast<llvm::IntegerType>(Zero->getType());
-    llvm::Value *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(Ty->getBitWidth()));
-    llvm::Value *NegOne = llvm::Constant::getAllOnesValue(Ty);
-    
-    llvm::Value *RHSNotZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
-    llvm::Value *LHSIsIntMin = Builder.CreateICmpEQ(Ops.LHS, IntMin);
-    llvm::Value *RHSIsNegOne = Builder.CreateICmpEQ(Ops.RHS, NegOne);
+  if (Ops.Ty->hasUnsignedIntegerRepresentation()) {
+    if (CGF.CGM.getCodeGenOpts().CheckDivRemOverflow) {
+      llvm::Value *Zero = llvm::Constant::getNullValue(ConvertType(Ops.Ty));
+      
+      llvm::Value *RHSIsZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
 
-    llvm::Value *And = Builder.CreateAnd(LHSIsIntMin, RHSIsNegOne);
-    llvm::Value *Or = Builder.CreateOr(RHSNotZero, And);
+      llvm::BasicBlock *TrapBB = CGF.createBasicBlock("overflow.trap", CGF.CurFn);
+      llvm::BasicBlock *DivBB = CGF.createBasicBlock("nooverflow", CGF.CurFn, Builder.GetInsertBlock()->getNextNode());
 
-    llvm::BasicBlock *TrapBB = CGF.createBasicBlock("overflow.trap", CGF.CurFn);
-    llvm::BasicBlock *DivBB = CGF.createBasicBlock("nooverflow", CGF.CurFn, Builder.GetInsertBlock()->getNextNode());
+      Builder.CreateCondBr(RHSIsZero, TrapBB, DivBB);
 
-    Builder.CreateCondBr(Or, TrapBB, DivBB);
+      Builder.SetInsertPoint(TrapBB);
+      CGF.EmitTrapCall(llvm::Intrinsic::trap);
+      Builder.CreateUnreachable();
 
-    Builder.SetInsertPoint(TrapBB);
-    CGF.EmitTrapCall(llvm::Intrinsic::trap);
-    Builder.CreateUnreachable();
+      Builder.SetInsertPoint(DivBB);
+    }
+    return Builder.CreateURem(Ops.LHS, Ops.RHS, "rem");
+  } else {
+    if (CGF.CGM.getCodeGenOpts().CheckDivRemOverflow) {
+      llvm::Value *Zero = llvm::Constant::getNullValue(ConvertType(Ops.Ty));
+      llvm::IntegerType *Ty = cast<llvm::IntegerType>(Zero->getType());
+      llvm::Value *IntMin = Builder.getInt(llvm::APInt::getSignedMinValue(Ty->getBitWidth()));
+      llvm::Value *NegOne = llvm::Constant::getAllOnesValue(Ty);
+      
+      llvm::Value *RHSIsZero = Builder.CreateICmpEQ(Ops.RHS, Zero);
+      llvm::Value *LHSIsIntMin = Builder.CreateICmpEQ(Ops.LHS, IntMin);
+      llvm::Value *RHSIsNegOne = Builder.CreateICmpEQ(Ops.RHS, NegOne);
 
-    Builder.SetInsertPoint(DivBB);
+      llvm::Value *And = Builder.CreateAnd(LHSIsIntMin, RHSIsNegOne);
+      llvm::Value *Or = Builder.CreateOr(RHSIsZero, And);
+
+      llvm::BasicBlock *TrapBB = CGF.createBasicBlock("overflow.trap", CGF.CurFn);
+      llvm::BasicBlock *DivBB = CGF.createBasicBlock("nooverflow", CGF.CurFn, Builder.GetInsertBlock()->getNextNode());
+
+      Builder.CreateCondBr(Or, TrapBB, DivBB);
+
+      Builder.SetInsertPoint(TrapBB);
+      CGF.EmitTrapCall(llvm::Intrinsic::trap);
+      Builder.CreateUnreachable();
+
+      Builder.SetInsertPoint(DivBB);
+    }
+    return Builder.CreateSRem(Ops.LHS, Ops.RHS, "rem");
   }
-
-  llvm::Value *Rem;
-  if (Ops.Ty->hasUnsignedIntegerRepresentation())
-    Rem = Builder.CreateURem(Ops.LHS, Ops.RHS, "rem");
-  else
-    Rem = Builder.CreateSRem(Ops.LHS, Ops.RHS, "rem");
-  
-  return Rem;
 }
 
 Value *ScalarExprEmitter::EmitOverflowCheckedBinOp(const BinOpInfo &Ops) {
