@@ -965,7 +965,7 @@ Value *LibCallSimplifier::optimizeStringLength(CallInst *CI, IRBuilderBase &B,
       // If Offset is not provably in the range [0, NullTermIdx], we can still
       // optimize if we can prove that the program has undefined behavior when
       // Offset is outside that range. That is the case when GEP->getOperand(0)
-      // is a pointer to an object whose memory extent is NullTermIdx+1.
+      // is a pointer to an object whose memory extent is NullTermIdx+1. Investigate
       if ((Known.isNonNegative() && Known.getMaxValue().ule(NullTermIdx)) ||
           (isa<GlobalVariable>(GEP->getOperand(0)) &&
            NullTermIdx == ArrSize - 1)) {

@@ -919,8 +919,8 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
     }
 
     // TODO: Switch on undef is UB. Stop passing false once the rest of LLVM
-    // is ready.
-    if (SCValue.isConstantRange(/*UndefAllowed=*/false)) {
+    // is ready. Investigate
+    if (SCValue.isConstantRange(/*UndefAllowed=*/true)) {
       const ConstantRange &Range = SCValue.getConstantRange();
       for (const auto &Case : SI->cases()) {
         const APInt &CaseValue = Case.getCaseValue()->getValue();
@@ -964,8 +964,8 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
     }
 
     // If we didn't find our destination in the IBR successor list, then we
-    // have undefined behavior. Its ok to assume no successor is executable.
-    return;
+    // have undefined behavior. Its ok to assume no successor is executable. Investigate
+    // return;
   }
 
   // In case of callbr, we pessimistically assume that all successors are

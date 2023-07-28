@@ -1983,7 +1983,7 @@ Instruction *InstCombinerImpl::foldItoFPtoI(CastInst &FI) {
   // of the input range and output range.
 
   // This means this is also safe for a signed input and unsigned output, since
-  // a negative input would lead to undefined behavior.
+  // a negative input would lead to undefined behavior. Investigate
   if (!isKnownExactCastIntToFP(*OpI, *this)) {
     // The first cast may not round exactly based on the source integer width
     // and FP width, but the overflow UB rules can still allow this to fold.

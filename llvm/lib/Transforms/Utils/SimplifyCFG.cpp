@@ -7181,7 +7181,7 @@ static bool passingValueIsAlwaysUndefined(Value *V, Instruction *I, bool PtrValu
 }
 
 /// If BB has an incoming value that will always trigger undefined behavior
-/// (eg. null pointer dereference), remove the branch leading here.
+/// (eg. null pointer dereference), remove the branch leading here. Investigate
 static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
                                               DomTreeUpdater *DTU) {
   for (PHINode &PHI : BB->phis())

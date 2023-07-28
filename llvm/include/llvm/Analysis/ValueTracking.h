@@ -427,7 +427,7 @@ bool onlyUsedByLifetimeMarkersOrDroppableInsts(const Value *V);
 bool mustSuppressSpeculation(const LoadInst &LI);
 
 /// Return true if the instruction does not have any effects besides
-/// calculating the result and does not have undefined behavior.
+/// calculating the result and does not have undefined behavior. Investigate
 ///
 /// This method never returns true for an instruction that returns true for
 /// mayHaveSideEffects; however, this method also does some other checks in
@@ -575,7 +575,7 @@ ConstantRange computeConstantRange(const Value *V, bool ForSigned,
 ///
 /// Undefined behavior is assumed not to happen, so e.g. division is
 /// guaranteed to transfer execution to the following instruction even
-/// though division by zero might cause undefined behavior.
+/// though division by zero might cause undefined behavior. Investigate
 bool isGuaranteedToTransferExecutionToSuccessor(const Instruction *I);
 
 /// Returns true if this block does not contain a potential implicit exit.
@@ -621,19 +621,19 @@ void getGuaranteedNonPoisonOps(const Instruction *I,
 
 /// Insert operands of I into Ops such that I will trigger undefined behavior
 /// if I is executed and that operand is not a well-defined value
-/// (i.e. has undef bits or poison).
+/// (i.e. has undef bits or poison). Investigate
 void getGuaranteedWellDefinedOps(const Instruction *I,
                                  SmallVectorImpl<const Value *> &Ops);
 
 /// Return true if the given instruction must trigger undefined behavior
 /// when I is executed with any operands which appear in KnownPoison holding
-/// a poison value at the point of execution.
+/// a poison value at the point of execution. Investigate
 bool mustTriggerUB(const Instruction *I,
                    const SmallSet<const Value *, 16> &KnownPoison);
 
 /// Return true if this function can prove that if Inst is executed
 /// and yields a poison value or undef bits, then that will trigger
-/// undefined behavior.
+/// undefined behavior. Investigate
 ///
 /// Note that this currently only considers the basic block that is
 /// the parent of Inst.

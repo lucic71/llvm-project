@@ -347,22 +347,31 @@ static bool canProveExitOnFirstIteration(Loop *L, DominatorTree &DT,
         MarkAllSuccessorsLive(BB);
         continue;
       }
-      if (isa<UndefValue>(KnownCondition)) {
-        // TODO: According to langref, branching by undef is undefined behavior.
-        // It means that, theoretically, we should be able to just continue
-        // without marking any successors as live. However, we are not certain
-        // how correct our compiler is at handling such cases. So we are being
-        // very conservative here.
-        //
-        // If there is a non-loop successor, always assume this branch leaves the
-        // loop. Otherwise, arbitrarily take IfTrue.
-        //
-        // Once we are certain that branching by undef is handled correctly by
-        // other transforms, we should not mark any successors live here.
-        if (L->contains(IfTrue) && L->contains(IfFalse))
-          MarkLiveEdge(BB, IfTrue);
-        continue;
-      }
+     if (isa<UndefValue>(KnownCondition)) {
+       // TODO: According to langref, branching by undef is undefined behavior.
+       // It means that, theoretically, we should be able to just continue
+       // without marking any successors as live. However, we are not certain
+       // how correct our compiler is at handling such cases. So we are being
+       // very conservative here.
+       //
+       // If there is a non-loop successor, always assume this branch leaves the
+       // loop. Otherwise, arbitrarily take IfTrue.
+       //
+       // Once we are certain that branching by undef is handled correctly by
+       // other transforms, we should not mark any successors live here.
+       // Investigate
+       LLVM_DEBUG(BB->print(dbgs()));
+       // delete this. put trap before br
+       Instruction* unreachableInst = new UnreachableInst(BB->getContext(), BB); 
+       //if (TrapOnUndefBr) {
+         Function *TrapFn =
+            Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+         CallInst::Create(TrapFn, "", unreachableInst);
+       //} 
+       if (L->contains(IfTrue) && L->contains(IfFalse))
+         MarkLiveEdge(BB, IfTrue);
+       continue;
+     }
       auto *ConstCondition = dyn_cast<ConstantInt>(KnownCondition);
       if (!ConstCondition) {
         // Non-constant condition, cannot analyze any further.

@@ -368,7 +368,7 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
 
       // If we didn't find our destination in the IBI successor list, then we
       // have undefined behavior.  Replace the unconditional branch with an
-      // 'unreachable' instruction.
+      // 'unreachable' instruction. Investigate this
       if (SuccToKeep) {
         BB->getTerminator()->eraseFromParent();
         new UnreachableInst(BB->getContext(), BB);
