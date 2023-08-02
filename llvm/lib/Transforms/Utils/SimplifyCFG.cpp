@@ -92,6 +92,8 @@ using namespace PatternMatch;
 
 #define DEBUG_TYPE "simplifycfg"
 
+extern cl::opt<bool> TrapOnUndefBr;
+
 cl::opt<bool> llvm::RequireAndPreserveDomTree(
     "simplifycfg-require-and-preserve-domtree", cl::Hidden,
 
@@ -6911,7 +6913,13 @@ static bool TryToMergeLandingPad(LandingPadInst *LPad, BranchInst *BI,
     }
 
     IRBuilder<> Builder(BI);
-    Builder.CreateUnreachable();
+    auto *unreachableInst = Builder.CreateUnreachable();
+    if (TrapOnUndefBr) {
+      Function *TrapFn =
+         Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+      CallInst::Create(TrapFn, "", unreachableInst);
+    }
+
     BI->eraseFromParent();
     if (DTU)
       DTU->applyUpdates(Updates);
@@ -7191,14 +7199,25 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
         Instruction *T = Predecessor->getTerminator();
         IRBuilder<> Builder(T);
         if (BranchInst *BI = dyn_cast<BranchInst>(T)) {
-          BB->removePredecessor(Predecessor);
+          BB->removePredecessor(Predecessor); // 
           // Turn unconditional branches into unreachables and remove the dead
           // destination from conditional branches.
-          if (BI->isUnconditional())
-            Builder.CreateUnreachable();
-          else {
+          if (BI->isUnconditional()) {
+            if (TrapOnUndefBr) {
+              Function *TrapFn = Intrinsic::getDeclaration(BI->getParent()->getParent()->getParent(), Intrinsic::trap);
+              CallInst::Create(TrapFn, "", BI);
+              return true;
+            } else {
+              Builder.CreateUnreachable();
+            }
+          } else {
             // Preserve guarding condition in assume, because it might not be
             // inferrable from any dominating condition.
+            if (TrapOnUndefBr) {
+              Function *TrapFn = Intrinsic::getDeclaration(BI->getParent()->getParent()->getParent(), Intrinsic::trap);
+              CallInst::Create(TrapFn, "", BI);
+              return true;
+            }
             Value *Cond = BI->getCondition();
             if (BI->getSuccessor(0) == BB)
               Builder.CreateAssumption(Builder.CreateNot(Cond));
@@ -7212,6 +7231,11 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
             DTU->applyUpdates({{DominatorTree::Delete, Predecessor, BB}});
           return true;
         } else if (SwitchInst *SI = dyn_cast<SwitchInst>(T)) {
+          if (TrapOnUndefBr) {
+            Function *TrapFn = Intrinsic::getDeclaration(SI->getParent()->getParent()->getParent(), Intrinsic::trap);
+            CallInst::Create(TrapFn, "", SI);
+            return true;
+          }
           // Redirect all branches leading to UB into
           // a newly created unreachable block.
           BasicBlock *Unreachable = BasicBlock::Create(

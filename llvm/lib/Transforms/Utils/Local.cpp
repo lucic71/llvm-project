@@ -91,6 +91,8 @@ using namespace llvm::PatternMatch;
 STATISTIC(NumRemoved, "Number of unreachable basic blocks removed");
 STATISTIC(NumPHICSEs, "Number of PHI's that got CSE'd");
 
+extern cl::opt<bool> TrapOnUndefBr;
+
 static cl::opt<bool> PHICSEDebugHash(
     "phicse-debug-hash",
 #ifdef EXPENSIVE_CHECKS
@@ -371,7 +373,13 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
       // 'unreachable' instruction.
       if (SuccToKeep) {
         BB->getTerminator()->eraseFromParent();
-        new UnreachableInst(BB->getContext(), BB);
+        Instruction* unreachableInst = new UnreachableInst(BB->getContext(), BB);
+        if (TrapOnUndefBr) {
+          Function *TrapFn =
+             Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+          CallInst::Create(TrapFn, "", unreachableInst);
+        }
+
       }
 
       if (DTU) {

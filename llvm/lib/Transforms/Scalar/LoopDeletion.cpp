@@ -39,6 +39,8 @@ STATISTIC(NumDeleted, "Number of loops deleted");
 STATISTIC(NumBackedgesBroken,
           "Number of loops for which we managed to break the backedge");
 
+extern cl::opt<bool> TrapOnUndefBr;
+
 static cl::opt<bool> EnableSymbolicExecution(
     "loop-deletion-enable-symbolic-execution", cl::Hidden, cl::init(true),
     cl::desc("Break backedge through symbolic execution of 1st iteration "
@@ -359,6 +361,11 @@ static bool canProveExitOnFirstIteration(Loop *L, DominatorTree &DT,
         //
         // Once we are certain that branching by undef is handled correctly by
         // other transforms, we should not mark any successors live here.
+        if (TrapOnUndefBr) {
+          auto TrapFn = Intrinsic::getDeclaration(Term->getParent()->getParent()->getParent(), Intrinsic::trap);
+          CallInst::Create(TrapFn, "", Term);
+        }
+
         if (L->contains(IfTrue) && L->contains(IfFalse))
           MarkLiveEdge(BB, IfTrue);
         continue;

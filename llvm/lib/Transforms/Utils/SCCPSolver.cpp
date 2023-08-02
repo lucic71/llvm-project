@@ -31,7 +31,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "sccp"
 
-static cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(false));
+cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(true));
 
 // The maximum number of range extensions allowed for operations requiring
 // widening.
@@ -912,6 +912,13 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
       Succs[0] = true;
       return;
     }
+
+    if (TrapOnUndefBr && isa<UndefValue>(SI->getCondition())) {
+       Function *TrapFn =
+          Intrinsic::getDeclaration(SI->getParent()->getParent()->getParent(), Intrinsic::trap);
+       CallInst::Create(TrapFn, "", SI);
+    }
+
     const ValueLatticeElement &SCValue = getValueState(SI->getCondition());
     if (ConstantInt *CI = getConstantInt(SCValue)) {
       Succs[SI->findCaseValue(CI)->getSuccessorIndex()] = true;
@@ -965,6 +972,12 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
 
     // If we didn't find our destination in the IBR successor list, then we
     // have undefined behavior. Its ok to assume no successor is executable.
+    if (TrapOnUndefBr) {
+      Function *TrapFn =
+         Intrinsic::getDeclaration(IBR->getParent()->getParent()->getParent(), Intrinsic::trap);
+      CallInst::Create(TrapFn, "", IBR);
+    }
+
     return;
   }
 
