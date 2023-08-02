@@ -79,7 +79,7 @@ void llvm::detachDeadBlocks(
       // Because control flow can't get here, we don't care what we replace the
       // value with.  Note that since this block is unreachable, and all values
       // contained within it must dominate their uses, that all uses will
-      // eventually be removed (they are themselves dead). Investigate this
+      // eventually be removed (they are themselves dead). Investigate this. Is ok
       if (!I.use_empty())
         I.replaceAllUsesWith(PoisonValue::get(I.getType()));
       BB->back().eraseFromParent();
@@ -1541,7 +1541,7 @@ SplitBlockAndInsertIfThenImpl(Value *Cond, Instruction *SplitBefore,
 
 Instruction *llvm::SplitBlockAndInsertIfThen(Value *Cond,
                                              Instruction *SplitBefore,
-                                             bool Unreachable,
+                                             bool Unreachable, // Investigate
                                              MDNode *BranchWeights,
                                              DominatorTree *DT, LoopInfo *LI,
                                              BasicBlock *ThenBlock) {

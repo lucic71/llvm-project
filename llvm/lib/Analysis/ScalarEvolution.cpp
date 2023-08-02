@@ -7262,7 +7262,7 @@ bool ScalarEvolution::isGuaranteedToTransferExecutionTo(const Instruction *A,
 }
 
 
-bool ScalarEvolution::isSCEVExprNeverPoison(const Instruction *I) {
+bool ScalarEvolution::isSCEVExprNeverPoison(const Instruction *I) { // Investigate
   // Only proceed if we can prove that I does not yield poison.
   if (!programUndefinedIfPoison(I))
     return false;

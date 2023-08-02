@@ -104,7 +104,7 @@ bool IndirectBrExpandPass::runOnFunction(Function &F) {
   for (BasicBlock &BB : F)
     if (auto *IBr = dyn_cast<IndirectBrInst>(BB.getTerminator())) {
       // Handle the degenerate case of no successors by replacing the indirectbr
-      // with unreachable as there is no successor available.
+      // with unreachable as there is no successor available. Investigate
       if (IBr->getNumSuccessors() == 0) {
         (void)new UnreachableInst(F.getContext(), IBr);
         IBr->eraseFromParent();
@@ -167,7 +167,7 @@ bool IndirectBrExpandPass::runOnFunction(Function &F) {
 
   if (BBs.empty()) {
     // There are no blocks whose address is taken, so any indirectbr instruction
-    // cannot get a valid input and we can replace all of them with unreachable.
+    // cannot get a valid input and we can replace all of them with unreachable. Investigate
     SmallVector<DominatorTree::UpdateType, 8> Updates;
     if (DTU)
       Updates.reserve(IndirectBrSuccs.size());

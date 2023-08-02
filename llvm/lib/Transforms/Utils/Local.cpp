@@ -91,6 +91,8 @@ using namespace llvm::PatternMatch;
 STATISTIC(NumRemoved, "Number of unreachable basic blocks removed");
 STATISTIC(NumPHICSEs, "Number of PHI's that got CSE'd");
 
+extern cl::opt<bool> TrapOnUndefBr;
+
 static cl::opt<bool> PHICSEDebugHash(
     "phicse-debug-hash",
 #ifdef EXPENSIVE_CHECKS
@@ -371,7 +373,12 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions,
       // 'unreachable' instruction. Investigate this
       if (SuccToKeep) {
         BB->getTerminator()->eraseFromParent();
-        new UnreachableInst(BB->getContext(), BB);
+        Instruction* unreachableInst = new UnreachableInst(BB->getContext(), BB);
+        if (TrapOnUndefBr) {
+          Function *TrapFn =
+             Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+          CallInst::Create(TrapFn, "", unreachableInst);
+        }
       }
 
       if (DTU) {
@@ -1068,7 +1075,7 @@ static void redirectValuesFromPredecessorsToPhi(BasicBlock *BB,
 }
 
 bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB,
-                                                   DomTreeUpdater *DTU) {
+                                                   DomTreeUpdater *DTU) { // Investigate
   assert(BB != &BB->getParent()->getEntryBlock() &&
          "TryToSimplifyUncondBranchFromEmptyBlock called on entry block!");
 
@@ -2407,7 +2414,7 @@ static bool markAliveBlocks(Function &F,
                                           cast<PointerType>(Callee->getType())
                                               ->getAddressSpace())) ||
                    isa<UndefValue>(Callee)) {
-          changeToUnreachable(CI, false, DTU);
+          changeToUnreachable(CI, false, DTU); // Investigate
           Changed = true;
           break;
         }
@@ -2436,7 +2443,7 @@ static bool markAliveBlocks(Function &F,
             (isa<ConstantPointerNull>(Ptr) &&
              !NullPointerIsDefined(SI->getFunction(),
                                    SI->getPointerAddressSpace()))) {
-          changeToUnreachable(SI, false, DTU);
+          changeToUnreachable(SI, false, DTU); // Investigate
           Changed = true;
           break;
         }
@@ -2450,7 +2457,7 @@ static bool markAliveBlocks(Function &F,
       if ((isa<ConstantPointerNull>(Callee) &&
            !NullPointerIsDefined(BB->getParent())) ||
           isa<UndefValue>(Callee)) {
-        changeToUnreachable(II, false, DTU);
+        changeToUnreachable(II, false, DTU); // Investigate
         Changed = true;
       } else {
         if (II->doesNotReturn() &&

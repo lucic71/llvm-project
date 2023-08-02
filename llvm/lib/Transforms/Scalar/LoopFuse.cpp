@@ -43,6 +43,7 @@
 /// the conditions for fusion are discussed in more detail in the document
 /// above. These can be added to the current implementation in the future.
 //===----------------------------------------------------------------------===//
+// Don't understand the uses of UnreachableInst's in this file
 
 #include "llvm/Transforms/Scalar/LoopFuse.h"
 #include "llvm/ADT/Statistic.h"

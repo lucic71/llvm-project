@@ -2850,7 +2850,7 @@ Instruction *InstCombinerImpl::foldSelectOfBools(SelectInst &SI) {
   // poison.
   if (match(TrueVal, m_One())) {
     if (impliesPoison(FalseVal, CondVal)) {
-      // Change: A = select B, true, C --> A = or B, C
+      // Change: A = select B, true, C --> A = or B, C. What?
       return BinaryOperator::CreateOr(CondVal, FalseVal);
     }
 
@@ -2891,7 +2891,7 @@ Instruction *InstCombinerImpl::foldSelectOfBools(SelectInst &SI) {
 
   if (match(FalseVal, m_Zero())) {
     if (impliesPoison(TrueVal, CondVal)) {
-      // Change: A = select B, C, false --> A = and B, C
+      // Change: A = select B, C, false --> A = and B, C. What?
       return BinaryOperator::CreateAnd(CondVal, TrueVal);
     }
 

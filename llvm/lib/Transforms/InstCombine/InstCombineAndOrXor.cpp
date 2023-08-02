@@ -578,7 +578,7 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
     // (icmp eq (A & B), B) & (icmp eq (A & D), D)
     // -> (icmp eq (A & (B|D)), (B|D))
     if (IsLogical && !isGuaranteedNotToBeUndefOrPoison(D))
-      return nullptr; // TODO: Use freeze?
+      return nullptr; // TODO: Use freeze? Investigate
     Value *NewOr = Builder.CreateOr(B, D);
     Value *NewAnd = Builder.CreateAnd(A, NewOr);
     return Builder.CreateICmp(NewCC, NewAnd, NewOr);

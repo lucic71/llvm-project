@@ -713,7 +713,7 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
 
     switch (I->getOpcode()) {
     default:
-      return false;
+      return false; // replace with true?
     case Instruction::GetElementPtr:
       // GEPs are cheap if all indices are constant.
       if (!cast<GEPOperator>(I)->hasAllConstantIndices())

@@ -31,7 +31,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "sccp"
 
-static cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(false));
+cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(false));
 
 // The maximum number of range extensions allowed for operations requiring
 // widening.
@@ -912,6 +912,13 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
       Succs[0] = true;
       return;
     }
+
+    if (TrapOnUndefBr && isa<UndefValue>(SI->getCondition())) {
+       Function *TrapFn =
+          Intrinsic::getDeclaration(SI->getParent()->getParent()->getParent(), Intrinsic::trap);
+       CallInst::Create(TrapFn, "", SI);
+    }
+
     const ValueLatticeElement &SCValue = getValueState(SI->getCondition());
     if (ConstantInt *CI = getConstantInt(SCValue)) {
       Succs[SI->findCaseValue(CI)->getSuccessorIndex()] = true;
@@ -920,7 +927,7 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
 
     // TODO: Switch on undef is UB. Stop passing false once the rest of LLVM
     // is ready. Investigate
-    if (SCValue.isConstantRange(/*UndefAllowed=*/true)) {
+    if (SCValue.isConstantRange(/*UndefAllowed=*/false)) {
       const ConstantRange &Range = SCValue.getConstantRange();
       for (const auto &Case : SI->cases()) {
         const APInt &CaseValue = Case.getCaseValue()->getValue();
@@ -965,7 +972,12 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
 
     // If we didn't find our destination in the IBR successor list, then we
     // have undefined behavior. Its ok to assume no successor is executable. Investigate
-    // return;
+    if (TrapOnUndefBr) {
+      Function *TrapFn =
+         Intrinsic::getDeclaration(IBR->getParent()->getParent()->getParent(), Intrinsic::trap);
+      CallInst::Create(TrapFn, "", IBR);
+    }
+    return;
   }
 
   // In case of callbr, we pessimistically assume that all successors are

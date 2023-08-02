@@ -92,6 +92,8 @@ using namespace PatternMatch;
 
 #define DEBUG_TYPE "simplifycfg"
 
+extern cl::opt<bool> TrapOnUndefBr;
+
 cl::opt<bool> llvm::RequireAndPreserveDomTree(
     "simplifycfg-require-and-preserve-domtree", cl::Hidden,
 
@@ -2505,7 +2507,7 @@ static void MergeCompatibleInvokesImpl(ArrayRef<InvokeInst *> Invokes,
 
     if (!HasNormalDest) {
       // This set does not have a normal destination,
-      // so just form a new block with unreachable terminator.
+      // so just form a new block with unreachable terminator. Investigate
       BasicBlock *MergedNormalDest = BasicBlock::Create(
           Ctx, II0BB->getName() + ".cont", Func, InsertBeforeBlock);
       new UnreachableInst(Ctx, MergedNormalDest);
@@ -3495,7 +3497,7 @@ static Value *createLogicalOp(IRBuilderBase &Builder,
                               Instruction::BinaryOps Opc, Value *LHS,
                               Value *RHS, const Twine &Name = "") {
   // Try to relax logical op to binary op.
-  if (impliesPoison(RHS, LHS))
+  if (impliesPoison(RHS, LHS)) // Investigate
     return Builder.CreateBinOp(Opc, LHS, RHS, Name);
   if (Opc == Instruction::And)
     return Builder.CreateLogicalAnd(LHS, RHS, Name);
@@ -4468,7 +4470,7 @@ bool SimplifyCFGOpt::SimplifyTerminatorOnSelect(Instruction *OldTerm,
     }
   } else if (KeepEdge1 && (KeepEdge2 || TrueBB == FalseBB)) {
     // Neither of the selected blocks were successors, so this
-    // terminator must be unreachable.
+    // terminator must be unreachable. Investigate
     new UnreachableInst(OldTerm->getContext(), OldTerm);
   } else {
     // One of the selected values was a successor, but the other wasn't.
@@ -5458,7 +5460,7 @@ static bool eliminateDeadSwitchCases(SwitchInst *SI, DomTreeUpdater *DTU,
     const APInt &CaseVal = Case.getCaseValue()->getValue();
     if (Known.Zero.intersects(CaseVal) || !Known.One.isSubsetOf(CaseVal) ||
         (CaseVal.getMinSignedBits() > MaxSignificantBitsInCond)) {
-      DeadCases.push_back(Case.getCaseValue());
+      DeadCases.push_back(Case.getCaseValue()); // Investigate
       if (DTU)
         --NumPerSuccessorCases[Successor];
       LLVM_DEBUG(dbgs() << "SimplifyCFG: switch case " << CaseVal
@@ -6818,7 +6820,7 @@ bool SimplifyCFGOpt::simplifyIndirectBr(IndirectBrInst *IBI) {
   }
 
   if (IBI->getNumDestinations() == 0) {
-    // If the indirectbr has no successors, change it to unreachable.
+    // If the indirectbr has no successors, change it to unreachable. Investigate
     new UnreachableInst(IBI->getContext(), IBI);
     EraseTerminatorAndDCECond(IBI);
     return true;
@@ -6911,7 +6913,12 @@ static bool TryToMergeLandingPad(LandingPadInst *LPad, BranchInst *BI,
     }
 
     IRBuilder<> Builder(BI);
-    Builder.CreateUnreachable();
+    auto *unreachableInst = Builder.CreateUnreachable();
+    if (TrapOnUndefBr) {
+      Function *TrapFn =
+         Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+      CallInst::Create(TrapFn, "", unreachableInst);
+    }
     BI->eraseFromParent();
     if (DTU)
       DTU->applyUpdates(Updates);
@@ -7194,11 +7201,17 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
           BB->removePredecessor(Predecessor);
           // Turn unconditional branches into unreachables and remove the dead
           // destination from conditional branches.
-          if (BI->isUnconditional())
-            Builder.CreateUnreachable();
-          else {
+          if (BI->isUnconditional()) {
+            auto *unreachableInst = Builder.CreateUnreachable();
+            if (TrapOnUndefBr) {
+              Function *TrapFn =
+                 Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+              CallInst::Create(TrapFn, "", unreachableInst);
+            }
+          } else {
             // Preserve guarding condition in assume, because it might not be
             // inferrable from any dominating condition.
+            // TODO: Add trap+unreachable here?
             Value *Cond = BI->getCondition();
             if (BI->getSuccessor(0) == BB)
               Builder.CreateAssumption(Builder.CreateNot(Cond));
@@ -7218,7 +7231,12 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
               Predecessor->getContext(), "unreachable", BB->getParent(), BB);
           Builder.SetInsertPoint(Unreachable);
           // The new block contains only one instruction: Unreachable
-          Builder.CreateUnreachable();
+          auto *unreachableInst = Builder.CreateUnreachable();
+          if (TrapOnUndefBr) {
+            Function *TrapFn =
+               Intrinsic::getDeclaration(unreachableInst->getParent()->getParent()->getParent(), Intrinsic::trap);
+            CallInst::Create(TrapFn, "", unreachableInst);
+          }
           for (const auto &Case : SI->cases())
             if (Case.getCaseSuccessor() == BB) {
               BB->removePredecessor(Predecessor);

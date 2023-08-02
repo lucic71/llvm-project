@@ -275,7 +275,7 @@ static bool rewrite(Function &F) {
       IRBuilder<> B(cast<Instruction>(&I));
 
       // Note: There are many more sources of documented UB, but this pass only
-      // attempts to find UB triggered by propagation of poison.
+      // attempts to find UB triggered by propagation of poison. Investigate
       SmallVector<const Value *, 4> NonPoisonOps;
       SmallPtrSet<const Value *, 4> SeenNonPoisonOps;
       getGuaranteedNonPoisonOps(&I, NonPoisonOps);

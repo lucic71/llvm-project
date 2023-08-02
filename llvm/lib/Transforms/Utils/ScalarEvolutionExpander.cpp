@@ -2582,7 +2582,7 @@ namespace {
 // applicable. Expanding a nested recurrence outside a loop requires computing
 // binomial coefficients. This could be done, but the recurrence has to be in a
 // perfectly reduced form, which can't be guaranteed.
-struct SCEVFindUnsafe {
+struct SCEVFindUnsafe { // Investigate?
   ScalarEvolution &SE;
   bool CanonicalMode;
   bool IsUnsafe = false;

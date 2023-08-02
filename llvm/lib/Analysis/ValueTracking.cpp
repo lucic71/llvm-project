@@ -4832,7 +4832,7 @@ bool llvm::isSafeToSpeculativelyExecuteWithOpcode(
 
   switch (Opcode) {
   default:
-    return true;
+    return true; // change to false?
   case Instruction::UDiv:
   case Instruction::URem: {
     // x / y is undefined if y == 0.
@@ -5440,7 +5440,7 @@ static bool impliesPoison(const Value *ValAssumedPoison, const Value *V,
   return false;
 }
 
-bool llvm::impliesPoison(const Value *ValAssumedPoison, const Value *V) {
+bool llvm::impliesPoison(const Value *ValAssumedPoison, const Value *V) { // Investigate
   return ::impliesPoison(ValAssumedPoison, V, /* Depth */ 0);
 }
 
@@ -5545,33 +5545,33 @@ static bool isGuaranteedNotToBeUndefOrPoison(const Value *V,
   // undef or poison.
   //   br V, BB1, BB2
   // BB1:
-  //   CtxI ; V cannot be undef or poison here
-  auto *Dominator = DNode->getIDom();
-  while (Dominator) {
-    auto *TI = Dominator->getBlock()->getTerminator();
-
-    Value *Cond = nullptr;
-    if (auto BI = dyn_cast_or_null<BranchInst>(TI)) {
-      if (BI->isConditional())
-        Cond = BI->getCondition();
-    } else if (auto SI = dyn_cast_or_null<SwitchInst>(TI)) {
-      Cond = SI->getCondition();
-    }
-
-    if (Cond) {
-      if (Cond == V)
-        return true;
-      else if (PoisonOnly && isa<Operator>(Cond)) {
-        // For poison, we can analyze further
-        auto *Opr = cast<Operator>(Cond);
-        if (any_of(Opr->operands(),
-                   [V](const Use &U) { return V == U && propagatesPoison(U); }))
-          return true;
-      }
-    }
-
-    Dominator = Dominator->getIDom();
-  }
+  //   CtxI ; V cannot be undef or poison here. Is this really true?
+//  auto *Dominator = DNode->getIDom();
+//  while (Dominator) {
+//    auto *TI = Dominator->getBlock()->getTerminator();
+//
+//    Value *Cond = nullptr;
+//    if (auto BI = dyn_cast_or_null<BranchInst>(TI)) {
+//      if (BI->isConditional())
+//        Cond = BI->getCondition();
+//    } else if (auto SI = dyn_cast_or_null<SwitchInst>(TI)) {
+//      Cond = SI->getCondition();
+//    }
+//
+//    if (Cond) {
+//      if (Cond == V)
+//        return true;
+//      else if (PoisonOnly && isa<Operator>(Cond)) {
+//        // For poison, we can analyze further
+//        auto *Opr = cast<Operator>(Cond);
+//        if (any_of(Opr->operands(),
+//                   [V](const Use &U) { return V == U && propagatesPoison(U); }))
+//          return true;
+//      }
+//    }
+//
+//    Dominator = Dominator->getIDom();
+//  }
 
   if (getKnowledgeValidInContext(V, {Attribute::NoUndef}, CtxI, DT, AC))
     return true;
