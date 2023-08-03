@@ -917,6 +917,7 @@ void SCCPInstVisitor::getFeasibleSuccessors(Instruction &TI,
        Function *TrapFn =
           Intrinsic::getDeclaration(SI->getParent()->getParent()->getParent(), Intrinsic::trap);
        CallInst::Create(TrapFn, "", SI);
+       return;
     }
 
     const ValueLatticeElement &SCValue = getValueState(SI->getCondition());

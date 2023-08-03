@@ -7203,28 +7203,25 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
           // Turn unconditional branches into unreachables and remove the dead
           // destination from conditional branches.
           if (BI->isUnconditional()) {
+            auto UI = Builder.CreateUnreachable();
             if (TrapOnUndefBr) {
-              Function *TrapFn = Intrinsic::getDeclaration(BI->getParent()->getParent()->getParent(), Intrinsic::trap);
-              CallInst::Create(TrapFn, "", BI);
-              return true;
-            } else {
-              Builder.CreateUnreachable();
+              Function *TrapFn = Intrinsic::getDeclaration(UI->getParent()->getParent()->getParent(), Intrinsic::trap);
+              CallInst::Create(TrapFn, "", UI);
             }
           } else {
             // Preserve guarding condition in assume, because it might not be
             // inferrable from any dominating condition.
-            if (TrapOnUndefBr) {
-              Function *TrapFn = Intrinsic::getDeclaration(BI->getParent()->getParent()->getParent(), Intrinsic::trap);
-              CallInst::Create(TrapFn, "", BI);
-              return true;
-            }
             Value *Cond = BI->getCondition();
             if (BI->getSuccessor(0) == BB)
               Builder.CreateAssumption(Builder.CreateNot(Cond));
             else
               Builder.CreateAssumption(Cond);
-            Builder.CreateBr(BI->getSuccessor(0) == BB ? BI->getSuccessor(1)
-                                                       : BI->getSuccessor(0));
+            auto BrI = Builder.CreateBr(BI->getSuccessor(0) == BB ? BI->getSuccessor(1)
+                                                                  : BI->getSuccessor(0));
+            if (TrapOnUndefBr) {
+              Function *TrapFn = Intrinsic::getDeclaration(BrI->getParent()->getParent()->getParent(), Intrinsic::trap);
+              CallInst::Create(TrapFn, "", BrI);
+            }
           }
           BI->eraseFromParent();
           if (DTU)
@@ -7234,7 +7231,6 @@ static bool removeUndefIntroducingPredecessor(BasicBlock *BB,
           if (TrapOnUndefBr) {
             Function *TrapFn = Intrinsic::getDeclaration(SI->getParent()->getParent()->getParent(), Intrinsic::trap);
             CallInst::Create(TrapFn, "", SI);
-            return true;
           }
           // Redirect all branches leading to UB into
           // a newly created unreachable block.
