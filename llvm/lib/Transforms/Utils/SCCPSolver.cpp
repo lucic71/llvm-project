@@ -31,7 +31,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "sccp"
 
-cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(true));
+cl::opt<bool> TrapOnUndefBr("trap-on-undef-br", cl::init(false));
 
 // The maximum number of range extensions allowed for operations requiring
 // widening.
