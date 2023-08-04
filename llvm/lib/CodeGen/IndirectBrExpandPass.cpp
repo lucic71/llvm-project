@@ -36,6 +36,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -45,6 +46,8 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "indirectbr-expand"
+
+extern cl::opt<bool> TrapOnUndefBr;
 
 namespace {
 
@@ -106,7 +109,11 @@ bool IndirectBrExpandPass::runOnFunction(Function &F) {
       // Handle the degenerate case of no successors by replacing the indirectbr
       // with unreachable as there is no successor available.
       if (IBr->getNumSuccessors() == 0) {
-        (void)new UnreachableInst(F.getContext(), IBr);
+        auto UI = new UnreachableInst(F.getContext(), IBr);
+        if (TrapOnUndefBr) {
+          Function *TrapFn = Intrinsic::getDeclaration(UI->getParent()->getParent()->getParent(), Intrinsic::trap);
+          CallInst::Create(TrapFn, "", UI);
+        }
         IBr->eraseFromParent();
         continue;
       }
@@ -176,7 +183,11 @@ bool IndirectBrExpandPass::runOnFunction(Function &F) {
         for (BasicBlock *SuccBB : IBr->successors())
           Updates.push_back({DominatorTree::Delete, IBr->getParent(), SuccBB});
       }
-      (void)new UnreachableInst(F.getContext(), IBr);
+      auto UI = new UnreachableInst(F.getContext(), IBr);
+      if (TrapOnUndefBr) {
+        Function *TrapFn = Intrinsic::getDeclaration(UI->getParent()->getParent()->getParent(), Intrinsic::trap);
+        CallInst::Create(TrapFn, "", UI);
+      }
       IBr->eraseFromParent();
     }
     if (DTU) {
