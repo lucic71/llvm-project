@@ -38,6 +38,7 @@ using namespace llvm;
 static cl::opt<unsigned> UseDerefAtPointSemantics(
     "use-dereferenceable-at-point-semantics", cl::Hidden, cl::init(false),
     cl::desc("Deref attributes and metadata infer facts at definition only"));
+extern cl::opt<bool> EnableUafOpts;
 
 //===----------------------------------------------------------------------===//
 //                                Value Class
@@ -847,7 +848,7 @@ uint64_t Value::getPointerDereferenceableBytes(const DataLayout &DL,
 
   uint64_t DerefBytes = 0;
   CanBeNull = false;
-  CanBeFreed = UseDerefAtPointSemantics && canBeFreed();
+  CanBeFreed = (UseDerefAtPointSemantics || EnableUafOpts) && canBeFreed();
   if (const Argument *A = dyn_cast<Argument>(this)) {
     DerefBytes = A->getDereferenceableBytes();
     if (DerefBytes == 0) {

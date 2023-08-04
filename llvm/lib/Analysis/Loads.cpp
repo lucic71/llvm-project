@@ -26,6 +26,8 @@
 
 using namespace llvm;
 
+extern cl::opt<bool> EnableUafOpts;
+
 static bool isAligned(const Value *Base, const APInt &Offset, Align Alignment,
                       const DataLayout &DL) {
   Align BA = Base->getPointerAlignment(DL);
@@ -100,7 +102,7 @@ static bool isDereferenceableAndAlignedPointer(
                         V->getPointerDereferenceableBytes(DL, CheckForNonNull,
                                                           CheckForFreed));
   if (KnownDerefBytes.getBoolValue() && KnownDerefBytes.uge(Size) &&
-      !CheckForFreed)
+      (EnableUafOpts || !CheckForFreed))
     if (!CheckForNonNull || isKnownNonZero(V, DL, 0, AC, CtxI, DT)) {
       // As we recursed through GEPs to get here, we've incrementally checked
       // that each step advanced by a multiple of the alignment. If our base is

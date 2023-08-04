@@ -65,6 +65,9 @@
 using namespace llvm;
 
 /// Enable analysis of recursive PHI nodes.
+cl::opt<bool> EnableUafOpts("enable-uaf-opts", 
+                                          cl::init(false));
+
 static cl::opt<bool> EnableRecPhiAnalysis("basic-aa-recphi", cl::Hidden,
                                           cl::init(true));
 
@@ -174,7 +177,8 @@ static uint64_t getMinimalExtentFrom(const Value &V,
   bool CanBeNull, CanBeFreed;
   uint64_t DerefBytes =
     V.getPointerDereferenceableBytes(DL, CanBeNull, CanBeFreed);
-  DerefBytes = (CanBeNull && NullIsValidLoc) ? 0 : DerefBytes;
+  if (EnableUafOpts)
+    DerefBytes = (CanBeNull && NullIsValidLoc) ? 0 : DerefBytes;
   // If queried with a precise location size, we assume that location size to be
   // accessed, thus valid.
   if (LocSize.isPrecise())
@@ -1528,6 +1532,8 @@ AliasResult BasicAAResult::aliasCheck(const Value *V1, LocationSize V1Size,
           const Value *HintO1 = getUnderlyingObject(Hint1);
           const Value *HintO2 = getUnderlyingObject(Hint2);
 
+          /* Not worth guarding this with DisableOOBAnalysis because
+          EnableSeparateStorageAnalysis is not enabled by default */
           if (((O1 == HintO1 && O2 == HintO2) ||
                (O1 == HintO2 && O2 == HintO1)) &&
               isValidAssumeForContext(Assume, CtxI, DT))
