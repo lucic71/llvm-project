@@ -47,6 +47,8 @@ using namespace llvm::PatternMatch;
 
 #define DEBUG_TYPE "instsimplify"
 
+cl::opt<bool> DisableUndefInstSimplify("disable-undef-inst-simplify", cl::init(false));
+
 enum { RecursionLimit = 3 };
 
 STATISTIC(NumExpand, "Number of expansions");
@@ -399,6 +401,9 @@ static Value *threadBinOpOverSelect(Instruction::BinaryOps Opcode, Value *LHS,
   if (!MaxRecurse--)
     return nullptr;
 
+  if (DisableUndefInstSimplify && ((LHS && isa<UndefValue>(LHS)) || (RHS && isa<UndefValue>(RHS))))
+    return nullptr;
+
   SelectInst *SI;
   if (isa<SelectInst>(LHS)) {
     SI = cast<SelectInst>(LHS);
@@ -417,6 +422,9 @@ static Value *threadBinOpOverSelect(Instruction::BinaryOps Opcode, Value *LHS,
     TV = simplifyBinOp(Opcode, LHS, SI->getTrueValue(), Q, MaxRecurse);
     FV = simplifyBinOp(Opcode, LHS, SI->getFalseValue(), Q, MaxRecurse);
   }
+
+  if (DisableUndefInstSimplify && ((TV && isa<UndefValue>(TV)) || (FV && isa<UndefValue>(FV))))
+    return nullptr;
 
   // If they simplified to the same value, then return the common value.
   // If they both failed to simplify then return null.
@@ -630,6 +638,9 @@ static Constant *foldOrCommuteConstant(Instruction::BinaryOps Opcode,
 /// If not, this returns null.
 static Value *simplifyAddInst(Value *Op0, Value *Op1, bool IsNSW, bool IsNUW,
                               const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
+
   if (Constant *C = foldOrCommuteConstant(Instruction::Add, Op0, Op1, Q))
     return C;
 
@@ -782,6 +793,9 @@ static Value *simplifyByDomEq(unsigned Opcode, Value *Op0, Value *Op1,
 /// If not, this returns null.
 static Value *simplifySubInst(Value *Op0, Value *Op1, bool IsNSW, bool IsNUW,
                               const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
+
   if (Constant *C = foldOrCommuteConstant(Instruction::Sub, Op0, Op1, Q))
     return C;
 
@@ -924,6 +938,9 @@ Value *llvm::simplifySubInst(Value *Op0, Value *Op1, bool IsNSW, bool IsNUW,
 /// If not, this returns null.
 static Value *simplifyMulInst(Value *Op0, Value *Op1, bool IsNSW, bool IsNUW,
                               const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
+
   if (Constant *C = foldOrCommuteConstant(Instruction::Mul, Op0, Op1, Q))
     return C;
 
@@ -997,6 +1014,9 @@ Value *llvm::simplifyMulInst(Value *Op0, Value *Op1, bool IsNSW, bool IsNUW,
 static Value *simplifyDivRem(Instruction::BinaryOps Opcode, Value *Op0,
                              Value *Op1, const SimplifyQuery &Q,
                              unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
+
   bool IsDiv = (Opcode == Instruction::SDiv || Opcode == Instruction::UDiv);
   bool IsSigned = (Opcode == Instruction::SDiv || Opcode == Instruction::SRem);
 
@@ -1279,6 +1299,8 @@ Value *llvm::simplifyUDivInst(Value *Op0, Value *Op1, bool IsExact,
 /// If not, this returns null.
 static Value *simplifySRemInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                                unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   // If the divisor is 0, the result is undefined, so assume the divisor is -1.
   // srem Op0, (sext i1 X) --> srem Op0, -1 --> 0
   Value *X;
@@ -1309,6 +1331,9 @@ Value *llvm::simplifyURemInst(Value *Op0, Value *Op1, const SimplifyQuery &Q) {
 
 /// Returns true if a shift by \c Amount always yields poison.
 static bool isPoisonShift(Value *Amount, const SimplifyQuery &Q) {
+  if (DisableUndefInstSimplify && (Amount && isa<UndefValue>(Amount)))
+    return true;
+
   Constant *C = dyn_cast<Constant>(Amount);
   if (!C)
     return false;
@@ -1342,6 +1367,9 @@ static bool isPoisonShift(Value *Amount, const SimplifyQuery &Q) {
 static Value *simplifyShift(Instruction::BinaryOps Opcode, Value *Op0,
                             Value *Op1, bool IsNSW, const SimplifyQuery &Q,
                             unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
+
   if (Constant *C = foldOrCommuteConstant(Opcode, Op0, Op1, Q))
     return C;
 
@@ -1412,6 +1440,8 @@ static Value *simplifyShift(Instruction::BinaryOps Opcode, Value *Op0,
 static Value *simplifyRightShift(Instruction::BinaryOps Opcode, Value *Op0,
                                  Value *Op1, bool IsExact,
                                  const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (Value *V =
           simplifyShift(Opcode, Op0, Op1, /*IsNSW*/ false, Q, MaxRecurse))
     return V;
@@ -1441,6 +1471,8 @@ static Value *simplifyRightShift(Instruction::BinaryOps Opcode, Value *Op0,
 /// If not, this returns null.
 static Value *simplifyShlInst(Value *Op0, Value *Op1, bool IsNSW, bool IsNUW,
                               const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (Value *V =
           simplifyShift(Instruction::Shl, Op0, Op1, IsNSW, Q, MaxRecurse))
     return V;
@@ -1511,6 +1543,8 @@ Value *llvm::simplifyLShrInst(Value *Op0, Value *Op1, bool IsExact,
 /// If not, this returns null.
 static Value *simplifyAShrInst(Value *Op0, Value *Op1, bool IsExact,
                                const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (Value *V = simplifyRightShift(Instruction::AShr, Op0, Op1, IsExact, Q,
                                     MaxRecurse))
     return V;
@@ -2062,6 +2096,8 @@ static Value *simplifyLogicOfAddSub(Value *Op0, Value *Op1,
 /// If not, this returns null.
 static Value *simplifyAndInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                               unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (Constant *C = foldOrCommuteConstant(Instruction::And, Op0, Op1, Q))
     return C;
 
@@ -2363,6 +2399,8 @@ static Value *simplifyOrLogic(Value *X, Value *Y) {
 /// If not, this returns null.
 static Value *simplifyOrInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                              unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (Constant *C = foldOrCommuteConstant(Instruction::Or, Op0, Op1, Q))
     return C;
 
@@ -2535,6 +2573,8 @@ Value *llvm::simplifyOrInst(Value *Op0, Value *Op1, const SimplifyQuery &Q) {
 /// If not, this returns null.
 static Value *simplifyXorInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                               unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (Constant *C = foldOrCommuteConstant(Instruction::Xor, Op0, Op1, Q))
     return C;
 
@@ -2727,6 +2767,8 @@ static bool haveNonOverlappingStorage(const Value *V1, const Value *V2) {
 // this optimization.
 static Constant *computePointerICmp(CmpInst::Predicate Pred, Value *LHS,
                                     Value *RHS, const SimplifyQuery &Q) {
+  if (DisableUndefInstSimplify && ((LHS && isa<UndefValue>(LHS)) || (RHS && isa<UndefValue>(RHS))))
+    return nullptr;
   const DataLayout &DL = Q.DL;
   const TargetLibraryInfo *TLI = Q.TLI;
   const DominatorTree *DT = Q.DT;
@@ -3654,6 +3696,8 @@ static Value *simplifyICmpWithDominatingAssume(CmpInst::Predicate Predicate,
 /// If not, this returns null.
 static Value *simplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
                                const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((LHS && isa<UndefValue>(LHS)) || (RHS && isa<UndefValue>(RHS))))
+    return nullptr;
   CmpInst::Predicate Pred = (CmpInst::Predicate)Predicate;
   assert(CmpInst::isIntPredicate(Pred) && "Not an integer compare!");
 
@@ -3953,6 +3997,9 @@ Value *llvm::simplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
 static Value *simplifyFCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
                                FastMathFlags FMF, const SimplifyQuery &Q,
                                unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((LHS && isa<UndefValue>(LHS)) || (RHS && isa<UndefValue>(RHS))))
+    return nullptr;
+
   CmpInst::Predicate Pred = (CmpInst::Predicate)Predicate;
   assert(CmpInst::isFPPredicate(Pred) && "Not an FP compare!");
 
@@ -4168,6 +4215,8 @@ static Value *simplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
                                      const SimplifyQuery &Q,
                                      bool AllowRefinement,
                                      unsigned MaxRecurse) {
+  // add undef teste here too?
+
   // Trivial replacement.
   if (V == Op)
     return RepOp;
@@ -4547,6 +4596,9 @@ static Value *simplifySelectWithFCmp(Value *Cond, Value *T, Value *F,
 /// If not, this returns null.
 static Value *simplifySelectInst(Value *Cond, Value *TrueVal, Value *FalseVal,
                                  const SimplifyQuery &Q, unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify &&
+    ((TrueVal && isa<UndefValue>(TrueVal)) || (FalseVal && isa<UndefValue>(FalseVal)) || (Cond && isa<UndefValue>(Cond))))
+    return nullptr;
   if (auto *CondC = dyn_cast<Constant>(Cond)) {
     if (auto *TrueC = dyn_cast<Constant>(TrueVal))
       if (auto *FalseC = dyn_cast<Constant>(FalseVal))
@@ -4681,6 +4733,8 @@ static Value *simplifySelectInst(Value *Cond, Value *TrueVal, Value *FalseVal,
 
       // If the elements match (undef or not), that value is the result. If only
       // one element is undef, choose the defined element as the safe result.
+      if (DisableUndefInstSimplify && ((TEltC && isa<UndefValue>(TEltC)) || (FEltC && isa<UndefValue>(FEltC))))
+        return nullptr;
       if (TEltC == FEltC)
         NewC.push_back(TEltC);
       else if (isa<PoisonValue>(TEltC) ||
@@ -4868,6 +4922,8 @@ Value *llvm::simplifyGEPInst(Type *SrcTy, Value *Ptr, ArrayRef<Value *> Indices,
 static Value *simplifyInsertValueInst(Value *Agg, Value *Val,
                                       ArrayRef<unsigned> Idxs,
                                       const SimplifyQuery &Q, unsigned) {
+  if (DisableUndefInstSimplify && ((Agg && isa<UndefValue>(Agg)) || (Val && isa<UndefValue>(Val))))
+    return nullptr;
   if (Constant *CAgg = dyn_cast<Constant>(Agg))
     if (Constant *CVal = dyn_cast<Constant>(Val))
       return ConstantFoldInsertValueInstruction(CAgg, CVal, Idxs);
@@ -4902,6 +4958,9 @@ Value *llvm::simplifyInsertValueInst(Value *Agg, Value *Val,
 
 Value *llvm::simplifyInsertElementInst(Value *Vec, Value *Val, Value *Idx,
                                        const SimplifyQuery &Q) {
+  if (DisableUndefInstSimplify &&
+    ((Vec && isa<UndefValue>(Vec)) || (Val && isa<UndefValue>(Val)) || (Idx && isa<UndefValue>(Idx))))
+    return nullptr;
   // Try to constant fold.
   auto *VecC = dyn_cast<Constant>(Vec);
   auto *ValC = dyn_cast<Constant>(Val);
@@ -4969,6 +5028,8 @@ Value *llvm::simplifyExtractValueInst(Value *Agg, ArrayRef<unsigned> Idxs,
 /// If not, this returns null.
 static Value *simplifyExtractElementInst(Value *Vec, Value *Idx,
                                          const SimplifyQuery &Q, unsigned) {
+  if (DisableUndefInstSimplify && ((Vec && isa<UndefValue>(Vec)) || (Idx && isa<UndefValue>(Idx))))
+    return nullptr;
   auto *VecVTy = cast<VectorType>(Vec->getType());
   if (auto *CVec = dyn_cast<Constant>(Vec)) {
     if (auto *CIdx = dyn_cast<Constant>(Idx))
@@ -5020,6 +5081,9 @@ Value *llvm::simplifyExtractElementInst(Value *Vec, Value *Idx,
 /// See if we can fold the given phi. If not, returns null.
 static Value *simplifyPHINode(PHINode *PN, ArrayRef<Value *> IncomingValues,
                               const SimplifyQuery &Q) {
+  for (Value *Incoming : IncomingValues)
+    if (DisableUndefInstSimplify && (Incoming && isa<UndefValue>(Incoming)))
+      return nullptr;
   // WARNING: no matter how worthwhile it may seem, we can not perform PHI CSE
   //          here, because the PHI we may succeed simplifying to was not
   //          def-reachable from the original PHI!
@@ -5105,6 +5169,10 @@ static Value *foldIdentityShuffles(int DestElt, Value *Op0, Value *Op1,
   if (!MaxRecurse--)
     return nullptr;
 
+  if (DisableUndefInstSimplify &&
+    ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1)) || (RootVec && isa<UndefValue>(RootVec))))
+    return nullptr;
+
   // Bail out if any mask value is undefined. That kind of shuffle may be
   // simplified further based on demanded bits or other folds.
   if (MaskVal == -1)
@@ -5151,8 +5219,10 @@ static Value *simplifyShuffleVectorInst(Value *Op0, Value *Op1,
                                         ArrayRef<int> Mask, Type *RetTy,
                                         const SimplifyQuery &Q,
                                         unsigned MaxRecurse) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (all_of(Mask, [](int Elem) { return Elem == UndefMaskElem; }))
-    return UndefValue::get(RetTy);
+    return !DisableUndefInstSimplify ? UndefValue::get(RetTy) : nullptr;
 
   auto *InVecTy = cast<VectorType>(Op0->getType());
   unsigned MaskNumElts = Mask.size();
@@ -5299,6 +5369,8 @@ Value *llvm::simplifyFNegInst(Value *Op, FastMathFlags FMF,
 /// Try to propagate existing NaN values when possible. If not, replace the
 /// constant or elements in the constant with a canonical NaN.
 static Constant *propagateNaN(Constant *In) {
+  if (DisableUndefInstSimplify && (In && isa<UndefValue>(In)))
+    return nullptr;
   if (auto *VecTy = dyn_cast<FixedVectorType>(In->getType())) {
     unsigned NumElts = VecTy->getNumElements();
     SmallVector<Constant *, 32> NewC(NumElts);
@@ -5330,6 +5402,10 @@ static Constant *simplifyFPOp(ArrayRef<Value *> Ops, FastMathFlags FMF,
                               const SimplifyQuery &Q,
                               fp::ExceptionBehavior ExBehavior,
                               RoundingMode Rounding) {
+  for (Value *V : Ops)
+    if (DisableUndefInstSimplify && (V && isa<UndefValue>(V)))
+      return nullptr;
+
   // Poison is independent of anything else. It always propagates from an
   // operand to a math result.
   if (any_of(Ops, [](Value *V) { return match(V, m_Poison()); }))
@@ -5651,6 +5727,8 @@ simplifyFRemInst(Value *Op0, Value *Op1, FastMathFlags FMF,
                  const SimplifyQuery &Q, unsigned,
                  fp::ExceptionBehavior ExBehavior = fp::ebIgnore,
                  RoundingMode Rounding = RoundingMode::NearestTiesToEven) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
   if (isDefaultFPEnvironment(ExBehavior, Rounding))
     if (Constant *C = foldOrCommuteConstant(Instruction::FRem, Op0, Op1, Q))
       return C;
@@ -6032,6 +6110,9 @@ static Value *foldMinMaxSharedOp(Intrinsic::ID IID, Value *Op0, Value *Op1) {
 
 static Value *simplifyBinaryIntrinsic(Function *F, Value *Op0, Value *Op1,
                                       const SimplifyQuery &Q) {
+  if (DisableUndefInstSimplify && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1))))
+    return nullptr;
+
   Intrinsic::ID IID = F->getIntrinsicID();
   Type *ReturnType = F->getReturnType();
   unsigned BitWidth = ReturnType->getScalarSizeInBits();
@@ -6313,6 +6394,10 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
   Function *F = cast<Function>(Call->getCalledFunction());
   Intrinsic::ID IID = F->getIntrinsicID();
 
+  Value *Callee = Call->getCalledOperand();
+  if (DisableUndefInstSimplify && ((Callee && isa<UndefValue>(Callee)) || (Callee && isa<ConstantPointerNull>(Callee))))
+    return nullptr;
+
   // Most of the intrinsics with no operands have some kind of side effect.
   // Don't simplify.
   if (!NumOperands) {
@@ -6349,7 +6434,7 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
     Value *MaskArg = Call->getArgOperand(2);
     Value *PassthruArg = Call->getArgOperand(3);
     // If the mask is all zeros or undef, the "passthru" argument is the result.
-    if (maskIsAllZeroOrUndef(MaskArg))
+    if (!DisableUndefInstSimplify && maskIsAllZeroOrUndef(MaskArg))
       return PassthruArg;
     return nullptr;
   }
@@ -6357,6 +6442,10 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
   case Intrinsic::fshr: {
     Value *Op0 = Call->getArgOperand(0), *Op1 = Call->getArgOperand(1),
           *ShAmtArg = Call->getArgOperand(2);
+
+    if (DisableUndefInstSimplify
+      && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1)) || (ShAmtArg && isa<UndefValue>(ShAmtArg))))
+      return nullptr;
 
     // If both operands are undef, the result is undef.
     if (Q.isUndefValue(Op0) && Q.isUndefValue(Op1))
@@ -6412,6 +6501,10 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
     Value *Op2 = Call->getArgOperand(2);
     Type *ReturnType = F->getReturnType();
 
+    if (DisableUndefInstSimplify
+      && ((Op0 && isa<UndefValue>(Op0)) || (Op1 && isa<UndefValue>(Op1)) || (Op2 && isa<UndefValue>(Op2))))
+      return nullptr;
+
     // Canonicalize constant operand as Op1 (ConstantFolding handles the case
     // when both Op0 and Op1 are constant so we do not care about that special
     // case here).
@@ -6440,6 +6533,10 @@ static Value *simplifyIntrinsic(CallBase *Call, const SimplifyQuery &Q) {
     Value *SubVec = Call->getArgOperand(1);
     Value *Idx = Call->getArgOperand(2);
     Type *ReturnType = F->getReturnType();
+
+    if (DisableUndefInstSimplify
+      && ((Vec && isa<UndefValue>(Vec)) || (SubVec && isa<UndefValue>(SubVec)) || (Idx && isa<UndefValue>(Idx))))
+      return nullptr;
 
     // (insert_vector Y, (extract_vector X, 0), 0) -> X
     // where: Y is X, or Y is undef
@@ -6518,8 +6615,9 @@ Value *llvm::simplifyCall(CallBase *Call, const SimplifyQuery &Q) {
   // call undef -> poison
   // call null -> poison
   Value *Callee = Call->getCalledOperand();
+  // Shouldn't we check if null pointer is defined before returning poison in the second case?
   if (isa<UndefValue>(Callee) || isa<ConstantPointerNull>(Callee))
-    return PoisonValue::get(Call->getType());
+    return !DisableUndefInstSimplify ? PoisonValue::get(Call->getType()) : nullptr;
 
   if (Value *V = tryConstantFoldCall(Call, Q))
     return V;
