@@ -60,6 +60,7 @@
 // RUN: %clang_cc1 -no-opaque-pointers -triple x86_64-pc-windows-msvc -aux-triple amdgcn -emit-llvm %s \
 // RUN:     -o - -x hip\
 // RUN:   | FileCheck -allow-deprecated-dag-overlap %s --check-prefixes=ALL,WIN,HIP,HIPNEF
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

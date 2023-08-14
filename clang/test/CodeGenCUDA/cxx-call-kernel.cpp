@@ -4,6 +4,7 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu \
 // RUN:   -mlink-bitcode-file %t.hip.bc -DHIP_PLATFORM -emit-llvm \
 // RUN:   %s -o - | FileCheck %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

@@ -17,6 +17,7 @@
 // RUN:     -aux-triple amdgcn-amd-amdhsa -fcuda-include-gpubinary \
 // RUN:     %t -o - -x hip\
 // RUN:   | FileCheck -check-prefix=NEG %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

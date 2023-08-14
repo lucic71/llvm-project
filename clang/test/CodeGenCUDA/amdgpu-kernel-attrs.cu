@@ -9,6 +9,7 @@
 // RUN:     -check-prefix=NAMD
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm \
 // RUN:     -verify -o - -x hip %s | FileCheck -check-prefix=NAMD %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

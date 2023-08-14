@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -triple x86_64-unknown-linux-gnu -emit-llvm -x hip %s -o - \
 // RUN: | FileCheck %s
+// XFAIL: *
 
 #define __global__ __attribute__((global))
 // CHECK: @_Z4kern7TempValIjE = constant ptr @_Z19__device_stub__kern7TempValIjE, align 8

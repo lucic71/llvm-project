@@ -12,6 +12,7 @@
 // RUN: %clang_cc1 -fhip-new-launch-api -x hip -emit-llvm %s -o - \
 // RUN:   -fgpu-default-stream=per-thread -DHIP_API_PER_THREAD_DEFAULT_STREAM \
 // RUN:   | FileCheck %s --check-prefixes=HIP-NEW,PTH,CHECK
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

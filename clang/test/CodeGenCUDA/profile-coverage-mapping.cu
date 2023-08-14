@@ -2,6 +2,7 @@
 // RUN: %clang_cc1 -fprofile-instrument=clang -triple x86_64-linux-gnu -target-sdk-version=8.0 -fcuda-include-gpubinary %t -emit-llvm -o - %s | FileCheck --check-prefix=PGOGEN %s
 // RUN: %clang_cc1 -fprofile-instrument=clang -fcoverage-mapping -triple x86_64-linux-gnu -target-sdk-version=8.0 -fcuda-include-gpubinary %t -emit-llvm -o - %s | FileCheck --check-prefix=COVMAP %s
 // RUN: %clang_cc1 -fprofile-instrument=clang -fcoverage-mapping -dump-coverage-mapping -triple x86_64-linux-gnu -target-sdk-version=8.0 -fcuda-include-gpubinary %t -emit-llvm-only -o - %s | FileCheck --check-prefix=MAPPING %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

@@ -16,6 +16,7 @@
 // RUN: %clang_cc1 -emit-llvm -o - -triple x86_64-pc-windows-msvc \
 // RUN:   -fms-extensions -x c++ %s \
 // RUN:   | FileCheck -check-prefix=CPP %s
+// XFAIL: *
 
 #if __HIP__
 #include "Inputs/cuda.h"

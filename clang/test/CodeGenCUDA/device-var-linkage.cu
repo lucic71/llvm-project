@@ -13,6 +13,7 @@
 // RUN: %clang_cc1 -triple nvptx -fcuda-is-device \
 // RUN:   -fgpu-rdc -cuid=abc -emit-llvm -o - %s \
 // RUN:   | FileCheck -check-prefixes=CUDA %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

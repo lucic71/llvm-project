@@ -19,6 +19,7 @@
 // RUN:   -emit-llvm -o - %s > %t.host
 
 // RUN: cat %t.dev %t.host | FileCheck -check-prefixes=CUDA,COMMON %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 

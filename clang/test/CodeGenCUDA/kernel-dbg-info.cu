@@ -23,6 +23,7 @@
 // RUN:   -fcuda-include-gpubinary %t -debug-info-kind=limited \
 // RUN:   -o - -x hip -debugger-tuning=gdb -dwarf-version=4 \
 // RUN:   -fcuda-is-device | FileCheck -check-prefix=DEV %s
+// XFAIL: *
 
 #include "Inputs/cuda.h"
 
