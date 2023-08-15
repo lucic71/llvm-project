@@ -87,6 +87,9 @@ STATISTIC(NumThreads, "Number of jumps threaded");
 STATISTIC(NumFolds,   "Number of terminators folded");
 STATISTIC(NumDupes,   "Number of branch blocks duplicated to eliminate phi");
 
+static cl::opt<bool> DisableUndefJumpThreading("disable-undef-jump-threading", cl::init(false));
+extern cl::opt<bool> TrapOnUndefBr;
+
 static cl::opt<unsigned>
 BBDuplicateThreshold("jump-threading-threshold",
           cl::desc("Max block size to duplicate for jump threading"),
@@ -635,7 +638,7 @@ static Constant *getKnownConstant(Value *Val, ConstantPreference Preference) {
 
   // Undef is "known" enough.
   if (UndefValue *U = dyn_cast<UndefValue>(Val))
-    return U;
+    return DisableUndefJumpThreading ? nullptr : U;
 
   if (Preference == WantBlockAddress)
     return dyn_cast<BlockAddress>(Val->stripPointerCasts());
@@ -774,18 +777,20 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
 
       // Scan for the sentinel.  If we find an undef, force it to the
       // interesting value: x|undef -> true and x&undef -> false.
-      for (const auto &LHSVal : LHSVals)
-        if (LHSVal.first == InterestingVal || isa<UndefValue>(LHSVal.first)) {
-          Result.emplace_back(InterestingVal, LHSVal.second);
-          LHSKnownBBs.insert(LHSVal.second);
-        }
-      for (const auto &RHSVal : RHSVals)
-        if (RHSVal.first == InterestingVal || isa<UndefValue>(RHSVal.first)) {
-          // If we already inferred a value for this block on the LHS, don't
-          // re-add it.
-          if (!LHSKnownBBs.count(RHSVal.second))
-            Result.emplace_back(InterestingVal, RHSVal.second);
-        }
+      if (!DisableUndefJumpThreading) {
+        for (const auto &LHSVal : LHSVals)
+          if (LHSVal.first == InterestingVal || isa<UndefValue>(LHSVal.first)) {
+            Result.emplace_back(InterestingVal, LHSVal.second);
+            LHSKnownBBs.insert(LHSVal.second);
+          }
+        for (const auto &RHSVal : RHSVals)
+          if (RHSVal.first == InterestingVal || isa<UndefValue>(RHSVal.first)) {
+            // If we already inferred a value for this block on the LHS, don't
+            // re-add it.
+            if (!LHSKnownBBs.count(RHSVal.second))
+              Result.emplace_back(InterestingVal, RHSVal.second);
+          }
+      }
 
       return !Result.empty();
     }
@@ -839,6 +844,9 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
     Value *CmpRHS = Cmp->getOperand(1);
     CmpInst::Predicate Pred = Cmp->getPredicate();
 
+    if (DisableUndefJumpThreading && ((CmpLHS && isa<UndefValue>(CmpLHS)) || (CmpRHS && isa<UndefValue>(CmpRHS))))
+      return false;
+
     PHINode *PN = dyn_cast<PHINode>(CmpLHS);
     if (!PN)
       PN = dyn_cast<PHINode>(CmpRHS);
@@ -856,6 +864,8 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
           LHS = CmpLHS->DoPHITranslation(BB, PredBB);
           RHS = PN->getIncomingValue(i);
         }
+        if (DisableUndefJumpThreading && ((LHS && isa<UndefValue>(LHS)) || (RHS && isa<UndefValue>(RHS))))
+          return false;
         Value *Res = simplifyCmpInst(Pred, LHS, RHS, {DL});
         if (!Res) {
           if (!isa<Constant>(RHS))
@@ -886,6 +896,8 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
     // live-in value on any predecessors.
     if (isa<Constant>(CmpRHS) && !CmpType->isVectorTy()) {
       Constant *CmpConst = cast<Constant>(CmpRHS);
+      if (DisableUndefJumpThreading && (CmpConst && isa<UndefValue>(CmpConst)))
+        return false;
 
       if (!isa<Instruction>(CmpLHS) ||
           cast<Instruction>(CmpLHS)->getParent() != BB) {
@@ -954,6 +966,8 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
 
       for (const auto &LHSVal : LHSVals) {
         Constant *V = LHSVal.first;
+        if (DisableUndefJumpThreading && (V && isa<UndefValue>(V)))
+          return false;
         Constant *Folded = ConstantExpr::getCompare(Pred, V, CmpConst);
         if (Constant *KC = getKnownConstant(Folded, WantInteger))
           Result.emplace_back(KC, LHSVal.second);
@@ -985,6 +999,8 @@ bool JumpThreadingPass::computeValueKnownInPredecessorsImpl(
           // Either operand will do, so be sure to pick the one that's a known
           // constant.
           // FIXME: Do this more cleverly if both values are known constants?
+          if (DisableUndefJumpThreading) 
+            return false;
           KnownCond = (TrueVal != nullptr);
         }
 
@@ -1108,6 +1124,16 @@ bool JumpThreadingPass::processBlock(BasicBlock *BB) {
   auto *FI = dyn_cast<FreezeInst>(Condition);
   if (isa<UndefValue>(Condition) ||
       (FI && isa<UndefValue>(FI->getOperand(0)) && FI->hasOneUse())) {
+    if (TrapOnUndefBr) {
+      auto UI = new UnreachableInst(BB->getContext(), Terminator);
+      if (TrapOnUndefBr) {
+        Function *TrapFn = Intrinsic::getDeclaration(UI->getParent()->getParent()->getParent(), Intrinsic::trap);
+        CallInst::Create(TrapFn, "", UI);
+      }
+      Terminator->eraseFromParent();
+      return false;
+    }
+
     unsigned BestSucc = getBestDestForJumpOnUndef(BB);
     std::vector<DominatorTree::UpdateType> Updates;
 
@@ -1278,7 +1304,7 @@ bool JumpThreadingPass::processImpliedCondition(BasicBlock *BB) {
 
     // If the branch condition of BB (which is Cond) and CurrentPred are
     // exactly the same freeze instruction, Cond can be folded into CondIsTrue.
-    if (!Implication && FICond && isa<FreezeInst>(PBI->getCondition())) {
+    if (!DisableUndefJumpThreading && !Implication && FICond && isa<FreezeInst>(PBI->getCondition())) {
       if (cast<FreezeInst>(PBI->getCondition())->getOperand(0) ==
           FICond->getOperand(0))
         Implication = CondIsTrue;
@@ -1800,9 +1826,20 @@ bool JumpThreadingPass::processThreadableEdges(Value *Cond, BasicBlock *BB,
 
   // If the threadable edges are branching on an undefined value, we get to pick
   // the destination that these predecessors should get to.
-  if (!MostPopularDest)
+  if (!MostPopularDest) {
+    if (TrapOnUndefBr) {
+      auto Terminator = BB->getTerminator();
+      auto UI = new UnreachableInst(BB->getContext(), Terminator);
+      if (TrapOnUndefBr) {
+        Function *TrapFn = Intrinsic::getDeclaration(UI->getParent()->getParent()->getParent(), Intrinsic::trap);
+        CallInst::Create(TrapFn, "", UI);
+      }
+      Terminator->eraseFromParent();
+      return false;
+    }
     MostPopularDest = BB->getTerminator()->
                             getSuccessor(getBestDestForJumpOnUndef(BB));
+  }
 
   // Ok, try to thread it!
   return tryThreadEdge(BB, PredsToFactor, MostPopularDest);
@@ -1927,7 +1964,7 @@ bool JumpThreadingPass::processBranchOnXOR(BinaryOperator *BO) {
   // help us.  However, we can just replace the LHS or RHS with the constant.
   if (BlocksToFoldInto.size() ==
       cast<PHINode>(BB->front()).getNumIncomingValues()) {
-    if (!SplitVal) {
+    if (!SplitVal && !DisableUndefJumpThreading) {
       // If all preds provide undef, just nuke the xor, because it is undef too.
       BO->replaceAllUsesWith(UndefValue::get(BO->getType()));
       BO->eraseFromParent();
@@ -2931,6 +2968,8 @@ bool JumpThreadingPass::tryToUnfoldSelectInCurrBB(BasicBlock *BB) {
       if (SI->getParent() != BB)
         return false;
       Value *Cond = SI->getCondition();
+      if (DisableUndefJumpThreading && (Cond && isa<UndefValue>(Cond)))
+        return false;
       bool IsAndOr = match(SI, m_CombineOr(m_LogicalAnd(), m_LogicalOr()));
       return Cond && Cond == V && Cond->getType()->isIntegerTy(1) && !IsAndOr;
     };
