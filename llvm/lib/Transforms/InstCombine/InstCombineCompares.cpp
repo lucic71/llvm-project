@@ -31,7 +31,7 @@ using namespace PatternMatch;
 
 #define DEBUG_TYPE "instcombine"
 
-static cl::opt<bool> DisableUndefICCompares("disable-undef-ic-compares", cl::init(true));
+static cl::opt<bool> DisableUndefICCompares("disable-undef-ic-compares", cl::init(false));
 
 #define DISABLE_UNDEF_IC_COMPARES_M_APINT(X) (DisableUndefICCompares ? m_APInt(X) : m_APIntAllowUndef(X))
 
