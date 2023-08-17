@@ -65,8 +65,7 @@
 using namespace llvm;
 
 /// Enable analysis of recursive PHI nodes.
-cl::opt<bool> EnableUafOpts("enable-uaf-opts", 
-                                          cl::init(false));
+extern cl::opt<bool> EnableUafOpts;
 
 static cl::opt<bool> EnableRecPhiAnalysis("basic-aa-recphi", cl::Hidden,
                                           cl::init(true));
