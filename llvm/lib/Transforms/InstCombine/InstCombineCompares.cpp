@@ -31,6 +31,10 @@ using namespace PatternMatch;
 
 #define DEBUG_TYPE "instcombine"
 
+static cl::opt<bool> DisableUndefICCompares("disable-undef-ic-compares", cl::init(true));
+
+#define DISABLE_UNDEF_IC_COMPARES_M_APINT(X) (DisableUndefICCompares ? m_APInt(X) : m_APIntAllowUndef(X))
+
 // How many times is a select replaced by one of its operands?
 STATISTIC(NumSel, "Number of select opts");
 
@@ -204,7 +208,7 @@ Instruction *InstCombinerImpl::foldCmpLoadFromIndexedGlobal(
     Constant *C = ConstantFoldCompareInstOperands(ICI.getPredicate(), Elt,
                                                   CompareRHS, DL, &TLI);
     // If the result is undef for this element, ignore it.
-    if (isa<UndefValue>(C)) {
+    if (!DisableUndefICCompares && isa<UndefValue>(C)) {
       // Extend range state machines to cover this element in case there is an
       // undef in the middle of the range.
       if (TrueRangeEnd == (int)i-1)
@@ -3044,7 +3048,7 @@ Instruction *InstCombinerImpl::foldICmpBitCast(ICmpInst &Cmp) {
   //   icmp <pred> iK %E, trunc(C)
   Value *Vec;
   ArrayRef<int> Mask;
-  if (match(BCSrcOp, m_Shuffle(m_Value(Vec), m_Undef(), m_Mask(Mask)))) {
+  if (!DisableUndefICCompares && match(BCSrcOp, m_Shuffle(m_Value(Vec), m_Undef(), m_Mask(Mask)))) {
     // Check whether every element of Mask is the same constant
     if (all_equal(Mask)) {
       auto *VecTy = cast<VectorType>(SrcType);
@@ -3106,7 +3110,7 @@ Instruction *InstCombinerImpl::foldICmpInstWithConstant(ICmpInst &Cmp) {
       return new ICmpInst(Cmp.getPredicate(), X, Y);
   }
 
-  if (match(Cmp.getOperand(1), m_APIntAllowUndef(C)))
+  if (!DisableUndefICCompares && match(Cmp.getOperand(1), m_APIntAllowUndef(C)))
     return foldICmpInstWithConstantAllowUndef(Cmp, *C);
 
   return nullptr;
@@ -4077,22 +4081,42 @@ Instruction *InstCombinerImpl::foldICmpBinOp(ICmpInst &I,
     // Op0 u<= ((Op0 + C) & C) --> Op0 == 0
     BinaryOperator *BO;
     const APInt *C;
-    if ((Pred == ICmpInst::ICMP_ULT || Pred == ICmpInst::ICMP_UGE) &&
-        match(Op0, m_And(m_BinOp(BO), m_LowBitMask(C))) &&
-        match(BO, m_Add(m_Specific(Op1), m_SpecificIntAllowUndef(*C)))) {
-      CmpInst::Predicate NewPred =
-          Pred == ICmpInst::ICMP_ULT ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ;
-      Constant *Zero = ConstantInt::getNullValue(Op1->getType());
-      return new ICmpInst(NewPred, Op1, Zero);
-    }
+    if (!DisableUndefICCompares) {
+      if ((Pred == ICmpInst::ICMP_ULT || Pred == ICmpInst::ICMP_UGE) &&
+          match(Op0, m_And(m_BinOp(BO), m_LowBitMask(C))) &&
+          match(BO, m_Add(m_Specific(Op1), m_SpecificIntAllowUndef(*C)))) {
+        CmpInst::Predicate NewPred =
+            Pred == ICmpInst::ICMP_ULT ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ;
+        Constant *Zero = ConstantInt::getNullValue(Op1->getType());
+        return new ICmpInst(NewPred, Op1, Zero);
+      }
 
-    if ((Pred == ICmpInst::ICMP_UGT || Pred == ICmpInst::ICMP_ULE) &&
-        match(Op1, m_And(m_BinOp(BO), m_LowBitMask(C))) &&
-        match(BO, m_Add(m_Specific(Op0), m_SpecificIntAllowUndef(*C)))) {
-      CmpInst::Predicate NewPred =
-          Pred == ICmpInst::ICMP_UGT ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ;
-      Constant *Zero = ConstantInt::getNullValue(Op1->getType());
-      return new ICmpInst(NewPred, Op0, Zero);
+      if ((Pred == ICmpInst::ICMP_UGT || Pred == ICmpInst::ICMP_ULE) &&
+          match(Op1, m_And(m_BinOp(BO), m_LowBitMask(C))) &&
+          match(BO, m_Add(m_Specific(Op0), m_SpecificIntAllowUndef(*C)))) {
+        CmpInst::Predicate NewPred =
+            Pred == ICmpInst::ICMP_UGT ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ;
+        Constant *Zero = ConstantInt::getNullValue(Op1->getType());
+        return new ICmpInst(NewPred, Op0, Zero);
+      }
+    } else {
+      if ((Pred == ICmpInst::ICMP_ULT || Pred == ICmpInst::ICMP_UGE) &&
+          match(Op0, m_And(m_BinOp(BO), m_LowBitMask(C))) &&
+          match(BO, m_Add(m_Specific(Op1), m_SpecificInt(*C)))) {
+        CmpInst::Predicate NewPred =
+            Pred == ICmpInst::ICMP_ULT ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ;
+        Constant *Zero = ConstantInt::getNullValue(Op1->getType());
+        return new ICmpInst(NewPred, Op1, Zero);
+      }
+
+      if ((Pred == ICmpInst::ICMP_UGT || Pred == ICmpInst::ICMP_ULE) &&
+          match(Op1, m_And(m_BinOp(BO), m_LowBitMask(C))) &&
+          match(BO, m_Add(m_Specific(Op0), m_SpecificInt(*C)))) {
+        CmpInst::Predicate NewPred =
+            Pred == ICmpInst::ICMP_UGT ? ICmpInst::ICMP_NE : ICmpInst::ICMP_EQ;
+        Constant *Zero = ConstantInt::getNullValue(Op1->getType());
+        return new ICmpInst(NewPred, Op0, Zero);
+      }
     }
   }
 
@@ -4231,7 +4255,7 @@ Instruction *InstCombinerImpl::foldICmpBinOp(ICmpInst &I,
     const APInt *AP1, *AP2;
     // TODO: Support non-uniform vectors.
     // TODO: Allow undef passthrough if B AND D's element is undef.
-    if (match(B, m_APIntAllowUndef(AP1)) && match(D, m_APIntAllowUndef(AP2)) &&
+    if (match(B, DISABLE_UNDEF_IC_COMPARES_M_APINT(AP1)) && match(D, DISABLE_UNDEF_IC_COMPARES_M_APINT(AP2)) &&
         AP1->isNegative() == AP2->isNegative()) {
       APInt AP1Abs = AP1->abs();
       APInt AP2Abs = AP2->abs();
@@ -4658,23 +4682,34 @@ Instruction *InstCombinerImpl::foldICmpEquality(ICmpInst &I) {
     unsigned OpWidth = Op0->getType()->getScalarSizeInBits();
     Value *X, *Y;
     ICmpInst::Predicate Pred2;
-    if (match(Op0, m_LShr(m_Value(X), m_SpecificIntAllowUndef(OpWidth - 1))) &&
-        match(A, m_ICmp(Pred2, m_Value(Y), m_AllOnes())) &&
-        Pred2 == ICmpInst::ICMP_SGT && X->getType() == Y->getType()) {
-      Value *Xor = Builder.CreateXor(X, Y, "xor.signbits");
-      Value *R = (Pred == ICmpInst::ICMP_EQ) ? Builder.CreateIsNeg(Xor) :
-                                               Builder.CreateIsNotNeg(Xor);
-      return replaceInstUsesWith(I, R);
-    }
+    if (DisableUndefICCompares) {
+      if (match(Op0, m_LShr(m_Value(X), m_SpecificInt(OpWidth - 1))) &&
+          match(A, m_ICmp(Pred2, m_Value(Y), m_AllOnes())) &&
+          Pred2 == ICmpInst::ICMP_SGT && X->getType() == Y->getType()) {
+        Value *Xor = Builder.CreateXor(X, Y, "xor.signbits");
+        Value *R = (Pred == ICmpInst::ICMP_EQ) ? Builder.CreateIsNeg(Xor) :
+                                                 Builder.CreateIsNotNeg(Xor);
+        return replaceInstUsesWith(I, R);
+      }
+    } else {
+      if (match(Op0, m_LShr(m_Value(X), m_SpecificIntAllowUndef(OpWidth - 1))) &&
+          match(A, m_ICmp(Pred2, m_Value(Y), m_AllOnes())) &&
+          Pred2 == ICmpInst::ICMP_SGT && X->getType() == Y->getType()) {
+        Value *Xor = Builder.CreateXor(X, Y, "xor.signbits");
+        Value *R = (Pred == ICmpInst::ICMP_EQ) ? Builder.CreateIsNeg(Xor) :
+                                                 Builder.CreateIsNotNeg(Xor);
+        return replaceInstUsesWith(I, R);
+      }
+   }
   }
 
   // (A >> C) == (B >> C) --> (A^B) u< (1 << C)
   // For lshr and ashr pairs.
   const APInt *AP1, *AP2;
-  if ((match(Op0, m_OneUse(m_LShr(m_Value(A), m_APIntAllowUndef(AP1)))) &&
-       match(Op1, m_OneUse(m_LShr(m_Value(B), m_APIntAllowUndef(AP2))))) ||
-      (match(Op0, m_OneUse(m_AShr(m_Value(A), m_APIntAllowUndef(AP1)))) &&
-       match(Op1, m_OneUse(m_AShr(m_Value(B), m_APIntAllowUndef(AP2)))))) {
+  if ((match(Op0, m_OneUse(m_LShr(m_Value(A), DISABLE_UNDEF_IC_COMPARES_M_APINT(AP1)))) &&
+       match(Op1, m_OneUse(m_LShr(m_Value(B), DISABLE_UNDEF_IC_COMPARES_M_APINT(AP2))))) ||
+      (match(Op0, m_OneUse(m_AShr(m_Value(A), DISABLE_UNDEF_IC_COMPARES_M_APINT(AP1)))) &&
+       match(Op1, m_OneUse(m_AShr(m_Value(B), DISABLE_UNDEF_IC_COMPARES_M_APINT(AP2)))))) {
     if (AP1 != AP2)
       return nullptr;
     unsigned TypeBits = AP1->getBitWidth();
@@ -6022,7 +6057,7 @@ static Instruction *foldVectorCmp(CmpInst &Cmp,
   // shuffle within a single vector, move the shuffle after the cmp:
   // cmp (shuffle V1, M), (shuffle V2, M) --> shuffle (cmp V1, V2), M
   Type *V1Ty = V1->getType();
-  if (match(RHS, m_Shuffle(m_Value(V2), m_Undef(), m_SpecificMask(M))) &&
+  if (!DisableUndefICCompares && match(RHS, m_Shuffle(m_Value(V2), m_Undef(), m_SpecificMask(M))) &&
       V1Ty == V2->getType() && (LHS->hasOneUse() || RHS->hasOneUse())) {
     Value *NewCmp = Builder.CreateCmp(Pred, V1, V2);
     return new ShuffleVectorInst(NewCmp, M);
@@ -6039,7 +6074,7 @@ static Instruction *foldVectorCmp(CmpInst &Cmp,
   // cmp (shuffle V1, M), C --> shuffle (cmp V1, C'), M
   Constant *ScalarC = C->getSplatValue(/* AllowUndefs */ true);
   int MaskSplatIndex;
-  if (ScalarC && match(M, m_SplatOrUndefMask(MaskSplatIndex))) {
+  if (!DisableUndefICCompares && ScalarC && match(M, m_SplatOrUndefMask(MaskSplatIndex))) {
     // We allow undefs in matching, but this transform removes those for safety.
     // Demanded elements analysis should be able to recover some/all of that.
     C = ConstantVector::getSplat(cast<VectorType>(V1Ty)->getElementCount(),
