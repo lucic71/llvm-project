@@ -5816,7 +5816,10 @@ InstCombiner::getFlippedStrictnessPredicateAndConstant(CmpInst::Predicate Pred,
         return std::nullopt;
 
       if (isa<UndefValue>(Elt))
-        continue;
+        if (DisableUndefICCompares)
+          return std::nullopt;
+        else
+          continue;
 
       // Bail out if we can't determine if this constant is min/max or if we
       // know that this constant is min/max.
