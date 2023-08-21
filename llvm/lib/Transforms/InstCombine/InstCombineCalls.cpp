@@ -82,6 +82,8 @@ using namespace PatternMatch;
 
 STATISTIC(NumSimplified, "Number of library calls simplified");
 
+extern cl::opt<bool> ZeroUninitLoads;
+
 static cl::opt<unsigned> GuardWideningWindow(
     "instcombine-guard-widening-window",
     cl::init(3),
@@ -137,6 +139,15 @@ Instruction *InstCombinerImpl::SimplifyAnyMemTransfer(AnyMemTransferInst *MI) {
   // wouldn't be constant), and this must be a noop.
   if (!isModSet(AA->getModRefInfoMask(MI->getDest()))) {
     // Set the size of the copy to 0, it will be deleted on the next iteration.
+    MI->setLength(Constant::getNullValue(MI->getLength()->getType()));
+    return MI;
+  }
+
+  // If the source is a fresh alloca and MI is a memcpy then replace MI with
+  // memset(0) when ZeroUninitLoads is enabled
+  if (ZeroUninitLoads && isa<AllocaInst>(MI->getRawSource()) && MI->getRawSource()->hasOneUse()) {
+    Builder.CreateMemSet(MI->getRawDest(), Constant::getNullValue(Builder.getInt8Ty()), MI->getLength(),
+      MI->getDestAlign(), MI->isVolatile(), MI->getMetadata(LLVMContext::MD_tbaa), nullptr, nullptr);
     MI->setLength(Constant::getNullValue(MI->getLength()->getType()));
     return MI;
   }
