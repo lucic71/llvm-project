@@ -2398,7 +2398,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     if (const auto *RefTy = RetTy->getAs<ReferenceType>()) {
       QualType PTy = RefTy->getPointeeType();
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType())
-        RetAttrs.addDereferenceableAttr(
+        if (!getCodeGenOpts().DropDerefAttr)
+          RetAttrs.addDereferenceableAttr(
             getMinimumObjectSize(PTy).getQuantity());
       if (getTypes().getTargetAddressSpace(PTy) == 0 &&
           !CodeGenOpts.NullPointerIsValid)
@@ -2451,7 +2452,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     if (!CodeGenOpts.NullPointerIsValid &&
         getTypes().getTargetAddressSpace(FI.arg_begin()->type) == 0) {
       Attrs.addAttribute(llvm::Attribute::NonNull);
-      Attrs.addDereferenceableAttr(getMinimumObjectSize(ThisTy).getQuantity());
+      if (!getCodeGenOpts().DropDerefAttr)
+        Attrs.addDereferenceableAttr(getMinimumObjectSize(ThisTy).getQuantity());
     } else {
       // FIXME dereferenceable should be correct here, regardless of
       // NullPointerIsValid. However, dereferenceable currently does not always
@@ -2574,7 +2576,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     if (const auto *RefTy = ParamType->getAs<ReferenceType>()) {
       QualType PTy = RefTy->getPointeeType();
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType())
-        Attrs.addDereferenceableAttr(
+        if (!getCodeGenOpts().DropDerefAttr)
+          Attrs.addDereferenceableAttr(
             getMinimumObjectSize(PTy).getQuantity());
       if (getTypes().getTargetAddressSpace(PTy) == 0 &&
           !CodeGenOpts.NullPointerIsValid)
@@ -2619,7 +2622,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       auto PTy = ParamType->getPointeeType();
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType()) {
         auto info = getContext().getTypeInfoInChars(PTy);
-        Attrs.addDereferenceableAttr(info.Width.getQuantity());
+        if (!getCodeGenOpts().DropDerefAttr)
+          Attrs.addDereferenceableAttr(info.Width.getQuantity());
         Attrs.addAlignmentAttr(info.Align.getAsAlign());
       }
       break;
@@ -2878,7 +2882,8 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
               if (!ETy->isIncompleteType() && ETy->isConstantSizeType() &&
                   ArrSize) {
                 llvm::AttrBuilder Attrs(getLLVMContext());
-                Attrs.addDereferenceableAttr(
+                if (!CGM.getCodeGenOpts().DropDerefAttr)
+                  Attrs.addDereferenceableAttr(
                     getContext().getTypeSizeInChars(ETy).getQuantity() *
                     ArrSize);
                 AI->addAttrs(Attrs);

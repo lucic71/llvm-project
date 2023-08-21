@@ -2018,6 +2018,12 @@ defm constrain_shift_value : BoolFOption<"constrain-shift-value",
   NegFlag<SetFalse, [], "Treat usage of oversized shift as undefined behavior (default)">,
   BothFlags<[CC1Option]>>;
 
+defm drop_deref_attr : BoolFOption<"drop-deref-attr",
+  CodeGenOpts<"DropDerefAttr">, DefaultFalse,
+  PosFlag<SetTrue, [], "Drop dereferenceable attribute">,
+  NegFlag<SetFalse, [], "Do not drop dereferenceable attribute (default)">,
+  BothFlags<[CC1Option]>>;
+
 def frewrite_map_file_EQ : Joined<["-"], "frewrite-map-file=">,
                            Group<f_Group>,
                            Flags<[NoXarchOption, CC1Option]>,
