@@ -63,6 +63,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "memcpyopt"
 
+extern cl::opt<bool> ZeroUninitLoads;
+
 static cl::opt<bool> EnableMemCpyOptWithoutLibcalls(
     "enable-memcpyopt-without-libcalls", cl::Hidden,
     cl::desc("Enable memcpyopt even when libcalls are disabled"));
@@ -997,6 +999,13 @@ bool MemCpyOptPass::performCallSlotOptzn(Instruction *cpyLoad,
   // guarantees that it holds only undefined values when passed in (so the final
   // memcpy can be dropped), that it is not read or written between the call and
   // the memcpy, and that writing beyond the end of it is undefined.
+
+  // If ZeroUninitLoads is enabled then the value of the alloca is 0, not undef.
+  // In this case drop any further optimization because there is no chance for
+  // the memcpy to be removed.
+  if (ZeroUninitLoads)
+    return false;
+
   SmallVector<User *, 8> srcUseList(srcAlloca->users());
   while (!srcUseList.empty()) {
     User *U = srcUseList.pop_back_val();
