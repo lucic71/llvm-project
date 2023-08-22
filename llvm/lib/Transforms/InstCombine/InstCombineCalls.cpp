@@ -143,18 +143,14 @@ Instruction *InstCombinerImpl::SimplifyAnyMemTransfer(AnyMemTransferInst *MI) {
     return MI;
   }
 
-  // If the source is a fresh alloca and MI is a memcpy then replace MI with
-  // memset(0) when ZeroUninitLoads is enabled
-  if (ZeroUninitLoads && isa<AllocaInst>(MI->getRawSource()) && MI->getRawSource()->hasOneUse()) {
-    Builder.CreateMemSet(MI->getRawDest(), Constant::getNullValue(Builder.getInt8Ty()), MI->getLength(),
-      MI->getDestAlign(), MI->isVolatile(), MI->getMetadata(LLVMContext::MD_tbaa), nullptr, nullptr);
-    MI->setLength(Constant::getNullValue(MI->getLength()->getType()));
-    return MI;
-  }
-
   // If the source is provably undef, the memcpy/memmove doesn't do anything
   // (unless the transfer is volatile).
   if (hasUndefSource(MI) && !MI->isVolatile()) {
+    // If the source is a fresh alloca and MI is a memcpy then replace MI with
+    // memset(0) when ZeroUninitLoads is enabled
+    if (ZeroUninitLoads)
+      Builder.CreateMemSet(MI->getRawDest(), Constant::getNullValue(Builder.getInt8Ty()), MI->getLength(),
+        MI->getDestAlign(), MI->isVolatile(), MI->getMetadata(LLVMContext::MD_tbaa), nullptr, nullptr);
     // Set the size of the copy to 0, it will be deleted on the next iteration.
     MI->setLength(Constant::getNullValue(MI->getLength()->getType()));
     return MI;
