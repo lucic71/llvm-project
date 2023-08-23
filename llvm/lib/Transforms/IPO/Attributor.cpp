@@ -86,6 +86,9 @@ STATISTIC(NumAttributesManifested,
 //
 // This will become more evolved once we perform two interleaved fixpoint
 // iterations: bottom-up and top-down.
+
+extern cl::opt<bool> ZeroUninitLoads;
+
 static cl::opt<unsigned>
     SetFixpointIterations("attributor-max-iterations", cl::Hidden,
                           cl::desc("Maximal number of fixpoint iterations."),
@@ -228,7 +231,9 @@ Constant *AA::getInitialValueForObj(Value &Obj, Type &Ty,
                                     const DataLayout &DL,
                                     AA::RangeTy *RangePtr) {
   if (isa<AllocaInst>(Obj))
-    return UndefValue::get(&Ty);
+    // AA::getInitialValueForObj is used only in getPotentialCopiesOfMemoryValue when IsLoad is enabled
+    // so return 0 when ZeroUninitLoads is enabled.
+    return ZeroUninitLoads ? Constant::getNullValue(&Ty) : UndefValue::get(&Ty);
   if (Constant *Init = getInitialValueOfAllocation(&Obj, TLI, &Ty, /*isUsedForLoad*/ true))
     return Init;
   auto *GV = dyn_cast<GlobalVariable>(&Obj);
