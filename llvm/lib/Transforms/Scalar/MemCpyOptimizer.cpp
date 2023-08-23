@@ -1350,7 +1350,9 @@ bool MemCpyOptPass::processMemSetMemCpyDependence(MemCpyInst *MemCpy,
 static bool hasUndefContents(MemorySSA *MSSA, BatchAAResults &AA, Value *V,
                              MemoryDef *Def, Value *Size) {
   if (MSSA->isLiveOnEntryDef(Def))
-    return isa<AllocaInst>(getUnderlyingObject(V));
+    // If ZeroUninitLoads is enabled then the content of the alloca is 0.
+    // For other Instructions we return false in any case.
+    return ZeroUninitLoads ? false : isa<AllocaInst>(getUnderlyingObject(V));
 
   if (auto *II = dyn_cast_or_null<IntrinsicInst>(Def->getMemoryInst())) {
     if (II->getIntrinsicID() == Intrinsic::lifetime_start) {
@@ -1367,6 +1369,7 @@ static bool hasUndefContents(MemorySSA *MSSA, BatchAAResults &AA, Value *V,
       // the memory is definitely undef, regardless of how exactly we alias.
       // The size also doesn't matter, as an out-of-bounds access would be UB.
       if (auto *Alloca = dyn_cast<AllocaInst>(getUnderlyingObject(V))) {
+        if (ZeroUninitLoads) return false;
         if (getUnderlyingObject(II->getArgOperand(1)) == Alloca) {
           const DataLayout &DL = Alloca->getModule()->getDataLayout();
           if (std::optional<TypeSize> AllocaSize =
