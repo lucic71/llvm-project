@@ -2024,6 +2024,12 @@ defm drop_deref_attr : BoolFOption<"drop-deref-attr",
   NegFlag<SetFalse, [], "Do not drop dereferenceable attribute (default)">,
   BothFlags<[CC1Option]>>;
 
+defm drop_align_attr : BoolFOption<"drop-align-attr",
+  CodeGenOpts<"DropAlignAttr">, DefaultFalse,
+  PosFlag<SetTrue, [], "Drop alignment attribute">,
+  NegFlag<SetFalse, [], "Do not drop alignment attribute (default)">,
+  BothFlags<[CC1Option]>>;
+
 def frewrite_map_file_EQ : Joined<["-"], "frewrite-map-file=">,
                            Group<f_Group>,
                            Flags<[NoXarchOption, CC1Option]>,

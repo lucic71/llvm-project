@@ -5200,6 +5200,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fdrop-deref-attr");
   else
     CmdArgs.push_back("-fno-drop-deref-attr");
+
+  if (Args.hasFlag(options::OPT_fdrop_align_attr,
+                   options::OPT_fno_drop_align_attr, false))
+    CmdArgs.push_back("-fdrop-align-attr");
+  else
+    CmdArgs.push_back("-fno-drop-align-attr");
   // LLVM Code Generator Options.
 
   for (const Arg *A : Args.filtered(options::OPT_frewrite_map_file_EQ)) {

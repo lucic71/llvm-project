@@ -522,6 +522,9 @@ CODEGENOPT(UseDefaultAlignment, 1, 1)
 /// Whether to drop dereferenceable attr.
 CODEGENOPT(DropDerefAttr, 1, 0)
 
+/// Whether to drop alignment attr.
+CODEGENOPT(DropAlignAttr, 1, 0)
+
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT

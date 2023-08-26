@@ -1,3 +1,4 @@
+// RUN: %clang_cc1 %s -emit-llvm -o - -triple=x86_64-apple-darwin10 -fdrop-align-attr | FileCheck -check-prefix=CHECK-ALIGN %s
 // RUN: %clang_cc1 %s -emit-llvm -o %t.ll -triple=x86_64-apple-darwin10
 // RUN: FileCheck %s < %t.ll
 // RUN: FileCheck -check-prefix=CHECK-GLOBAL %s < %t.ll
@@ -167,6 +168,7 @@ namespace BoolPtrToMember {
   };
 
   // CHECK-LABEL: define{{.*}} nonnull align {{[0-9]+}} dereferenceable({{[0-9]+}}) ptr @_ZN15BoolPtrToMember1fERNS_1XEMS0_b
+  // CHECK-ALIGN: define{{.*}} nonnull dereferenceable({{[0-9]+}}) ptr @_ZN15BoolPtrToMember1fERNS_1XEMS0_b
   bool &f(X &x, bool X::*member) {
     // CHECK: getelementptr inbounds i8, ptr
     // CHECK-NEXT: ret ptr

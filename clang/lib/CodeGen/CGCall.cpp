@@ -2407,7 +2407,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       if (PTy->isObjectType()) {
         llvm::Align Alignment =
             getNaturalPointeeTypeAlignment(RetTy).getAsAlign();
-        RetAttrs.addAlignmentAttr(Alignment);
+        if (!getCodeGenOpts().DropAlignAttr)
+          RetAttrs.addAlignmentAttr(Alignment);
       }
     }
   }
@@ -2422,7 +2423,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     hasUsedSRet = true;
     if (RetAI.getInReg())
       SRETAttrs.addAttribute(llvm::Attribute::InReg);
-    SRETAttrs.addAlignmentAttr(RetAI.getIndirectAlign().getQuantity());
+    if (!getCodeGenOpts().DropAlignAttr)
+      SRETAttrs.addAlignmentAttr(RetAI.getIndirectAlign().getQuantity());
     ArgAttrs[IRFunctionArgs.getSRetArgNo()] =
         llvm::AttributeSet::get(getLLVMContext(), SRETAttrs);
   }
@@ -2469,7 +2471,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         getNaturalTypeAlignment(ThisTy, /*BaseInfo=*/nullptr,
                                 /*TBAAInfo=*/nullptr, /*forPointeeType=*/true)
             .getAsAlign();
-    Attrs.addAlignmentAttr(Alignment);
+    if (!getCodeGenOpts().DropAlignAttr)
+      Attrs.addAlignmentAttr(Alignment);
 
     ArgAttrs[IRArgs.first] = llvm::AttributeSet::get(getLLVMContext(), Attrs);
   }
@@ -2513,7 +2516,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         Attrs.addAttribute(llvm::Attribute::Nest);
       else if (AI.getInReg())
         Attrs.addAttribute(llvm::Attribute::InReg);
-      Attrs.addStackAlignmentAttr(llvm::MaybeAlign(AI.getDirectAlign()));
+      if (!getCodeGenOpts().DropAlignAttr)
+        Attrs.addStackAlignmentAttr(llvm::MaybeAlign(AI.getDirectAlign()));
       break;
 
     case ABIArgInfo::Indirect: {
@@ -2549,7 +2553,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
 
       // For now, only add this when we have a byval argument.
       // TODO: be less lazy about updating test cases.
-      if (AI.getIndirectByVal())
+      if (AI.getIndirectByVal() && !getCodeGenOpts().DropAlignAttr)
         Attrs.addAlignmentAttr(Align.getQuantity());
 
       // byval disables readnone and readonly.
@@ -2559,7 +2563,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     case ABIArgInfo::IndirectAliased: {
       CharUnits Align = AI.getIndirectAlign();
       Attrs.addByRefAttr(getTypes().ConvertTypeForMem(ParamType));
-      Attrs.addAlignmentAttr(Align.getQuantity());
+      if (!getCodeGenOpts().DropAlignAttr)
+        Attrs.addAlignmentAttr(Align.getQuantity());
       break;
     }
     case ABIArgInfo::Ignore:
@@ -2585,6 +2590,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       if (PTy->isObjectType()) {
         llvm::Align Alignment =
             getNaturalPointeeTypeAlignment(ParamType).getAsAlign();
+      if (!getCodeGenOpts().DropAlignAttr)
         Attrs.addAlignmentAttr(Alignment);
       }
     }
@@ -2599,6 +2605,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType()) {
         llvm::Align Alignment =
             getNaturalPointeeTypeAlignment(ParamType).getAsAlign();
+      if (!getCodeGenOpts().DropAlignAttr)
         Attrs.addAlignmentAttr(Alignment);
       }
     }
@@ -2624,7 +2631,8 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         auto info = getContext().getTypeInfoInChars(PTy);
         if (!getCodeGenOpts().DropDerefAttr)
           Attrs.addDereferenceableAttr(info.Width.getQuantity());
-        Attrs.addAlignmentAttr(info.Align.getAsAlign());
+        if (!getCodeGenOpts().DropAlignAttr)
+          Attrs.addAlignmentAttr(info.Align.getAsAlign());
       }
       break;
     }
@@ -2877,7 +2885,8 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
               QualType ETy = ArrTy->getElementType();
               llvm::Align Alignment =
                   CGM.getNaturalTypeAlignment(ETy).getAsAlign();
-              AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(Alignment));
+              if (!CGM.getCodeGenOpts().DropAlignAttr)
+                AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(Alignment));
               uint64_t ArrSize = ArrTy->getSize().getZExtValue();
               if (!ETy->isIncompleteType() && ETy->isConstantSizeType() &&
                   ArrSize) {
@@ -2902,7 +2911,8 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
               QualType ETy = ArrTy->getElementType();
               llvm::Align Alignment =
                   CGM.getNaturalTypeAlignment(ETy).getAsAlign();
-              AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(Alignment));
+              if (!CGM.getCodeGenOpts().DropAlignAttr)
+                AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(Alignment));
               if (!getTypes().getTargetAddressSpace(ETy) &&
                   !CGM.getCodeGenOpts().NullPointerIsValid)
                 AI->addAttr(llvm::Attribute::NonNull);
@@ -2924,7 +2934,8 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
                 AlignmentCI->getLimitedValue(llvm::Value::MaximumAlignment);
             if (AI->getParamAlign().valueOrOne() < AlignmentInt) {
               AI->removeAttr(llvm::Attribute::AttrKind::Alignment);
-              AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(
+              if (!CGM.getCodeGenOpts().DropAlignAttr)
+                AI->addAttrs(llvm::AttrBuilder(getLLVMContext()).addAlignmentAttr(
                   llvm::Align(AlignmentInt)));
             }
           }
