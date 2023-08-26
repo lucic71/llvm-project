@@ -2030,6 +2030,12 @@ defm drop_align_attr : BoolFOption<"drop-align-attr",
   NegFlag<SetFalse, [], "Do not drop alignment attribute (default)">,
   BothFlags<[CC1Option]>>;
 
+defm drop_noalias_attr : BoolFOption<"drop-noalias-attr",
+  CodeGenOpts<"DropNoAliasAttr">, DefaultFalse,
+  PosFlag<SetTrue, [], "Drop noalias attribute">,
+  NegFlag<SetFalse, [], "Do not drop noalias attribute (default)">,
+  BothFlags<[CC1Option]>>;
+
 def frewrite_map_file_EQ : Joined<["-"], "frewrite-map-file=">,
                            Group<f_Group>,
                            Flags<[NoXarchOption, CC1Option]>,

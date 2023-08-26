@@ -2191,7 +2191,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         auto Kind = Fn->getDeclName().getCXXOverloadedOperator();
         if (getCodeGenOpts().AssumeSaneOperatorNew &&
             (Kind == OO_New || Kind == OO_Array_New))
-          RetAttrs.addAttribute(llvm::Attribute::NoAlias);
+          RetAttrs.addAttribute(llvm::Attribute::NoAlias); // no need to guard with -fdrop-noalias-attr
       }
       const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(Fn);
       const bool IsVirtualCall = MD && MD->isVirtual();
@@ -2224,7 +2224,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       FuncAttrs.addMemoryAttr(llvm::MemoryEffects::argMemOnly());
       FuncAttrs.addAttribute(llvm::Attribute::NoUnwind);
     }
-    if (TargetDecl->hasAttr<RestrictAttr>())
+    if (!getCodeGenOpts().DropNoAliasAttr && TargetDecl->hasAttr<RestrictAttr>())
       RetAttrs.addAttribute(llvm::Attribute::NoAlias);
     if (TargetDecl->hasAttr<ReturnsNonNullAttr>() &&
         !CodeGenOpts.NullPointerIsValid)
@@ -2532,7 +2532,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
           Decl->getArgPassingRestrictions() == RecordDecl::APK_CanPassInRegs)
         // When calling the function, the pointer passed in will be the only
         // reference to the underlying object. Mark it accordingly.
-        Attrs.addAttribute(llvm::Attribute::NoAlias);
+        Attrs.addAttribute(llvm::Attribute::NoAlias); // no need to guard with -fdrop-noalias-attr
 
       // TODO: We could add the byref attribute if not byval, but it would
       // require updating many testcases.
@@ -2623,7 +2623,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       }
 
       // Add 'noalias' in either case.
-      Attrs.addAttribute(llvm::Attribute::NoAlias);
+      Attrs.addAttribute(llvm::Attribute::NoAlias); // no need to guard with -fdrop-noalias-attr
 
       // Add 'dereferenceable' and 'alignment'.
       auto PTy = ParamType->getPointeeType();
@@ -2768,7 +2768,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
   if (IRFunctionArgs.hasSRetArg()) {
     auto AI = Fn->getArg(IRFunctionArgs.getSRetArgNo());
     AI->setName("agg.result");
-    AI->addAttr(llvm::Attribute::NoAlias);
+    AI->addAttr(llvm::Attribute::NoAlias); // no need to guard with -fdrop-noalias-attr
   }
 
   // Track if we received the parameter as a pointer (indirect, byval, or
@@ -2942,7 +2942,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
         }
 
         // Set 'noalias' if an argument type has the `restrict` qualifier.
-        if (Arg->getType().isRestrictQualified())
+        if (!CGM.getCodeGenOpts().DropNoAliasAttr && Arg->getType().isRestrictQualified())
           AI->addAttr(llvm::Attribute::NoAlias);
       }
 

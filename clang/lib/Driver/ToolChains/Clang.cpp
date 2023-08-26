@@ -5206,6 +5206,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fdrop-align-attr");
   else
     CmdArgs.push_back("-fno-drop-align-attr");
+
+  if (Args.hasFlag(options::OPT_fdrop_noalias_attr,
+                   options::OPT_fno_drop_noalias_attr, false))
+    CmdArgs.push_back("-fdrop-noalias-attr");
+  else
+    CmdArgs.push_back("-fno-drop-noalias-attr");
   // LLVM Code Generator Options.
 
   for (const Arg *A : Args.filtered(options::OPT_frewrite_map_file_EQ)) {

@@ -525,6 +525,9 @@ CODEGENOPT(DropDerefAttr, 1, 0)
 /// Whether to drop alignment attr.
 CODEGENOPT(DropAlignAttr, 1, 0)
 
+/// Whether to drop noalias attr.
+CODEGENOPT(DropNoAliasAttr, 1, 0)
+
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT
