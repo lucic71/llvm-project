@@ -233,8 +233,12 @@ public:
     const llvm::StructLayout *Layout = DL.getStructLayout(ElTy);
     auto Offset = CharUnits::fromQuantity(Layout->getElementOffset(Index));
 
+    // CreateStructGEP translates into a CreateConstInBoundsGEP2_32. When we drop
+    // inbounds, we call directly CreateConstGEP2_32 from Clang.
     return Address(
-        CreateStructGEP(Addr.getElementType(), Addr.getPointer(), Index, Name),
+        CGM->getCodeGenOpts().DropInboundsFromGEP
+          ? CreateConstGEP2_32(Addr.getElementType(), Addr.getPointer(), 0, Index, Name)
+          : CreateStructGEP(Addr.getElementType(), Addr.getPointer(), Index, Name),
         ElTy->getElementType(Index),
         Addr.getAlignment().alignmentAtOffset(Offset));
   }
