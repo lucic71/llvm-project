@@ -526,7 +526,7 @@ CODEGENOPT(DropDerefAttr, 1, 0)
 CODEGENOPT(DropAlignAttr, 1, 0)
 
 /// Whether to drop noalias attr.
-CODEGENOPT(DropNoAliasAttr, 1, 0)
+CODEGENOPT(DropNoAliasRestrictAttr, 1, 0)
 
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT

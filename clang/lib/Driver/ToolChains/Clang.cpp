@@ -5207,11 +5207,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   else
     CmdArgs.push_back("-fno-drop-align-attr");
 
-  if (Args.hasFlag(options::OPT_fdrop_noalias_attr,
-                   options::OPT_fno_drop_noalias_attr, false))
-    CmdArgs.push_back("-fdrop-noalias-attr");
+  if (Args.hasFlag(options::OPT_fdrop_noalias_restrict_attr,
+                   options::OPT_fno_drop_noalias_restrict_attr, false))
+    CmdArgs.push_back("-fdrop-noalias-restrict-attr");
   else
-    CmdArgs.push_back("-fno-drop-noalias-attr");
+    CmdArgs.push_back("-fno-drop-noalias-restrict-attr");
   // LLVM Code Generator Options.
 
   for (const Arg *A : Args.filtered(options::OPT_frewrite_map_file_EQ)) {

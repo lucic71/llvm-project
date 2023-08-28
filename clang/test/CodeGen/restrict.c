@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -triple x86_64-darwin-apple -emit-llvm %s -o - | FileCheck %s
-// RUN: %clang_cc1 -triple x86_64-darwin-apple -fdrop-noalias-attr -emit-llvm %s -o - | FileCheck %s --check-prefixes=CHECK-NOALIAS
+// RUN: %clang_cc1 -triple x86_64-darwin-apple -fdrop-noalias-restrict-attr -emit-llvm %s -o - | FileCheck %s --check-prefixes=CHECK-NOALIAS
 
 // PR6695
 

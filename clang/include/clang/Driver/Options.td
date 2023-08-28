@@ -2030,8 +2030,8 @@ defm drop_align_attr : BoolFOption<"drop-align-attr",
   NegFlag<SetFalse, [], "Do not drop alignment attribute (default)">,
   BothFlags<[CC1Option]>>;
 
-defm drop_noalias_attr : BoolFOption<"drop-noalias-attr",
-  CodeGenOpts<"DropNoAliasAttr">, DefaultFalse,
+defm drop_noalias_restrict_attr : BoolFOption<"drop-noalias-restrict-attr",
+  CodeGenOpts<"DropNoAliasRestrictAttr">, DefaultFalse,
   PosFlag<SetTrue, [], "Drop noalias attribute">,
   NegFlag<SetFalse, [], "Do not drop noalias attribute (default)">,
   BothFlags<[CC1Option]>>;
