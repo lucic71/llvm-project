@@ -2456,7 +2456,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       Attrs.addAttribute(llvm::Attribute::NonNull);
       if (!getCodeGenOpts().DropDerefAttr)
         Attrs.addDereferenceableAttr(getMinimumObjectSize(ThisTy).getQuantity());
-    } else {
+    } else if (!getCodeGenOpts().DropDerefAttr) {
       // FIXME dereferenceable should be correct here, regardless of
       // NullPointerIsValid. However, dereferenceable currently does not always
       // respect NullPointerIsValid and may imply nonnull and break the program.
