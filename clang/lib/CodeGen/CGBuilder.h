@@ -411,6 +411,32 @@ public:
                        CharUnits::fromQuantity(Offset.getSExtValue())));
   }
 
+  llvm::CallInst *CreateMemCpy(llvm::Value *Dst, llvm::MaybeAlign DstAlign, llvm::Value *Src,
+                               llvm::MaybeAlign SrcAlign, llvm::Value *Size,
+                               bool isVolatile = false, llvm::MDNode *TBAATag = nullptr,
+                               llvm::MDNode *TBAAStructTag = nullptr,
+                               llvm::MDNode *ScopeTag = nullptr,
+                               llvm::MDNode *NoAliasTag = nullptr) {
+    return CGM->getCodeGenOpts().UseDefaultAlignment
+      ? CGBuilderBaseTy::CreateMemCpy(Dst, DstAlign, Src, SrcAlign, Size, isVolatile,
+                                      TBAATag, TBAAStructTag, ScopeTag, NoAliasTag)
+      : CGBuilderBaseTy::CreateMemCpy(Dst, llvm::MaybeAlign(1), Src, llvm::MaybeAlign(1),
+                                      Size, isVolatile, TBAATag, TBAAStructTag, ScopeTag, NoAliasTag);
+  }
+
+  llvm::CallInst *CreateMemCpyInline(llvm::Value *Dst, llvm::MaybeAlign DstAlign, llvm::Value *Src,
+                               llvm::MaybeAlign SrcAlign, llvm::Value *Size,
+                               bool isVolatile = false, llvm::MDNode *TBAATag = nullptr,
+                               llvm::MDNode *TBAAStructTag = nullptr,
+                               llvm::MDNode *ScopeTag = nullptr,
+                               llvm::MDNode *NoAliasTag = nullptr) {
+    return CGM->getCodeGenOpts().UseDefaultAlignment
+      ? CGBuilderBaseTy::CreateMemCpyInline(Dst, DstAlign, Src, SrcAlign, Size, isVolatile,
+                                      TBAATag, TBAAStructTag, ScopeTag, NoAliasTag)
+      : CGBuilderBaseTy::CreateMemCpyInline(Dst, llvm::MaybeAlign(1), Src, llvm::MaybeAlign(1),
+                                      Size, isVolatile, TBAATag, TBAAStructTag, ScopeTag, NoAliasTag);
+  }
+
   using CGBuilderBaseTy::CreateMemCpy;
   llvm::CallInst *CreateMemCpy(Address Dest, Address Src, llvm::Value *Size,
                                bool IsVolatile = false) {
