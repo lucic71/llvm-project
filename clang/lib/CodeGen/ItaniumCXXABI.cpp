@@ -1802,7 +1802,7 @@ ItaniumCXXABI::getVTableAddressPoint(BaseSubobject Base,
   };
 
   return llvm::ConstantExpr::getGetElementPtr(VTable->getValueType(), VTable,
-                                              Indices, /*InBounds=*/true,
+                                              Indices, /*InBounds=*/!CGM.getCodeGenOpts().DropInboundsFromGEP,
                                               /*InRangeIndex=*/1);
 }
 
@@ -3609,11 +3609,11 @@ void ItaniumRTTIBuilder::BuildVTablePointer(const Type *Ty) {
     llvm::Constant *Eight = llvm::ConstantInt::get(CGM.Int32Ty, 8);
     VTable = llvm::ConstantExpr::getBitCast(VTable, CGM.Int8PtrTy);
     VTable =
-        llvm::ConstantExpr::getInBoundsGetElementPtr(CGM.Int8Ty, VTable, Eight);
+        llvm::ConstantExpr::getGetElementPtr(CGM.Int8Ty, VTable, Eight, /*IsBounds*/!CGM.getCodeGenOpts().DropInboundsFromGEP);
   } else {
     llvm::Constant *Two = llvm::ConstantInt::get(PtrDiffTy, 2);
-    VTable = llvm::ConstantExpr::getInBoundsGetElementPtr(CGM.Int8PtrTy, VTable,
-                                                          Two);
+    VTable = llvm::ConstantExpr::getGetElementPtr(CGM.Int8PtrTy, VTable,
+                                                          Two, /*IsBounds*/!CGM.getCodeGenOpts().DropInboundsFromGEP);
   }
   VTable = llvm::ConstantExpr::getBitCast(VTable, CGM.Int8PtrTy);
 

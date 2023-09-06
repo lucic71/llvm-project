@@ -78,7 +78,7 @@ CodeGenVTables::EmitVTTDefinition(llvm::GlobalVariable *VTT,
      };
 
      llvm::Constant *Init = llvm::ConstantExpr::getGetElementPtr(
-         VTable->getValueType(), VTable, Idxs, /*InBounds=*/true,
+         VTable->getValueType(), VTable, Idxs, /*InBounds=*/!CGM.getCodeGenOpts().DropInboundsFromGEP,
          /*InRangeIndex=*/1);
 
      Init = llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(Init,

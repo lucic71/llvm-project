@@ -1596,8 +1596,8 @@ namespace {
       // Form a GEP and then bitcast to the placeholder type so that the
       // replacement will succeed.
       llvm::Constant *location =
-        llvm::ConstantExpr::getInBoundsGetElementPtr(BaseValueTy,
-                                                     Base, IndexValues);
+        llvm::ConstantExpr::getGetElementPtr(BaseValueTy,
+                                                     Base, IndexValues, /*IsBounds*/!CGM.getCodeGenOpts().DropInboundsFromGEP);
       location = llvm::ConstantExpr::getBitCast(location,
                                                 placeholder->getType());
 

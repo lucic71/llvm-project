@@ -1894,8 +1894,8 @@ llvm::GlobalVariable *MicrosoftCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
                                  llvm::ConstantInt::get(CGM.Int32Ty, 1)};
     // Create a GEP which points just after the first entry in the VFTable,
     // this should be the location of the first virtual method.
-    llvm::Constant *VTableGEP = llvm::ConstantExpr::getInBoundsGetElementPtr(
-        VTable->getValueType(), VTable, GEPIndices);
+    llvm::Constant *VTableGEP = llvm::ConstantExpr::getGetElementPtr(
+        VTable->getValueType(), VTable, GEPIndices, /*IsBounds*/!CGM.getCodeGenOpts().DropInboundsFromGEP);
     if (llvm::GlobalValue::isWeakForLinker(VFTableLinkage)) {
       VFTableLinkage = llvm::GlobalValue::ExternalLinkage;
       if (C)
@@ -3788,9 +3788,9 @@ llvm::GlobalVariable *MSRTTIBuilder::getClassHierarchyDescriptor() {
       llvm::ConstantInt::get(CGM.IntTy, 0), // reserved by the runtime
       llvm::ConstantInt::get(CGM.IntTy, Flags),
       llvm::ConstantInt::get(CGM.IntTy, Classes.size()),
-      ABI.getImageRelativeConstant(llvm::ConstantExpr::getInBoundsGetElementPtr(
+      ABI.getImageRelativeConstant(llvm::ConstantExpr::getGetElementPtr(
           Bases->getValueType(), Bases,
-          llvm::ArrayRef<llvm::Value *>(GEPIndices))),
+          llvm::ArrayRef<llvm::Value *>(GEPIndices), /*IsBounds*/!CGM.getCodeGenOpts().DropInboundsFromGEP)),
   };
   CHD->setInitializer(llvm::ConstantStruct::get(Type, Fields));
   return CHD;

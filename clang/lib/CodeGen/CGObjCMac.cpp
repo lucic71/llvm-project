@@ -7877,8 +7877,8 @@ CGObjCNonFragileABIMac::GetInterfaceEHType(const ObjCInterfaceDecl *ID,
   ConstantInitBuilder builder(CGM);
   auto values = builder.beginStruct(ObjCTypes.EHTypeTy);
   values.add(
-    llvm::ConstantExpr::getInBoundsGetElementPtr(VTableGV->getValueType(),
-                                                 VTableGV, VTableIdx));
+    llvm::ConstantExpr::getGetElementPtr(VTableGV->getValueType(),
+                                                 VTableGV, VTableIdx, /*IsBounds*/!CGM.getCodeGenOpts().DropInboundsFromGEP));
   values.add(GetClassName(ClassName));
   values.add(GetClassGlobal(ID, /*metaclass*/ false, NotForDefinition));
 
