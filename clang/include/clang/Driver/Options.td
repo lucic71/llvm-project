@@ -2036,6 +2036,12 @@ defm drop_noalias_restrict_attr : BoolFOption<"drop-noalias-restrict-attr",
   NegFlag<SetFalse, [], "Do not drop noalias attribute (default)">,
   BothFlags<[CC1Option]>>;
 
+defm drop_ub_builtins : BoolFOption<"drop-ub-builtins",
+  CodeGenOpts<"DropUbBuiltins">, DefaultFalse,
+  PosFlag<SetTrue, [], "Drop UB-producing builtins, e.g. assume_aligned, unreachable">,
+  NegFlag<SetFalse, [], "Do not drop UB-producing builtins (default)">,
+  BothFlags<[CC1Option]>>;
+
 def frewrite_map_file_EQ : Joined<["-"], "frewrite-map-file=">,
                            Group<f_Group>,
                            Flags<[NoXarchOption, CC1Option]>,

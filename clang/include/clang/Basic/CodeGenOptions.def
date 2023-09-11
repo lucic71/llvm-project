@@ -528,6 +528,9 @@ CODEGENOPT(DropAlignAttr, 1, 0)
 /// Whether to drop noalias attr.
 CODEGENOPT(DropNoAliasRestrictAttr, 1, 0)
 
+/// Whether to drop UB-producing builtins.
+CODEGENOPT(DropUbBuiltins, 1, 0)
+
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT

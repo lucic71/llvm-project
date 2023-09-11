@@ -2812,9 +2812,10 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       AlignmentCI = ConstantInt::get(AlignmentCI->getType(),
                                      llvm::Value::MaximumAlignment);
 
-    emitAlignmentAssumption(PtrValue, Ptr,
-                            /*The expr loc is sufficient.*/ SourceLocation(),
-                            AlignmentCI, OffsetValue);
+    if (!CGM.getCodeGenOpts().DropUbBuiltins)
+      emitAlignmentAssumption(PtrValue, Ptr,
+                              /*The expr loc is sufficient.*/ SourceLocation(),
+                              AlignmentCI, OffsetValue);
     return RValue::get(PtrValue);
   }
   case Builtin::BI__assume:
@@ -2966,7 +2967,10 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
     EmitTrapCall(Intrinsic::debugtrap);
     return RValue::get(nullptr);
   case Builtin::BI__builtin_unreachable: {
-    EmitUnreachable(E->getExprLoc());
+    if (CGM.getCodeGenOpts().DropUbBuiltins)
+      EmitTrapCall(Intrinsic::trap);
+    else
+      EmitUnreachable(E->getExprLoc());
 
     // We do need to preserve an insertion point.
     EmitBlock(createBasicBlock("unreachable.cont"));
@@ -4525,6 +4529,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
 
   case Builtin::BI__builtin_is_aligned:
     return EmitBuiltinIsAligned(E);
+  // These two builtins might need to be guarded by DropUbBuiltins
   case Builtin::BI__builtin_align_up:
     return EmitBuiltinAlignTo(E, true);
   case Builtin::BI__builtin_align_down:

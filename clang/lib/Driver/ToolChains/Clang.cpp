@@ -5212,6 +5212,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fdrop-noalias-restrict-attr");
   else
     CmdArgs.push_back("-fno-drop-noalias-restrict-attr");
+
+  if (Args.hasFlag(options::OPT_fdrop_ub_builtins,
+                   options::OPT_fno_drop_ub_builtins, false))
+    CmdArgs.push_back("-fdrop-ub-builtins");
+  else
+    CmdArgs.push_back("-fno-drop-ub-builtins");
   // LLVM Code Generator Options.
 
   for (const Arg *A : Args.filtered(options::OPT_frewrite_map_file_EQ)) {
