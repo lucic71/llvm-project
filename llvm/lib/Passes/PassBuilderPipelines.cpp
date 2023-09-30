@@ -816,11 +816,13 @@ PassBuilder::buildInlinerPipeline(OptimizationLevel Level,
 
   // Require the GlobalsAA analysis for the module so we can query it within
   // the CGSCC pipeline.
-  MIWP.addModulePass(RequireAnalysisPass<GlobalsAA, Module>());
-  // Invalidate AAManager so it can be recreated and pick up the newly available
-  // GlobalsAA.
-  MIWP.addModulePass(
-      createModuleToFunctionPassAdaptor(InvalidateAnalysisPass<AAManager>()));
+  if (EnableGlobalAnalyses) {
+    MIWP.addModulePass(RequireAnalysisPass<GlobalsAA, Module>());
+    // Invalidate AAManager so it can be recreated and pick up the newly available
+    // GlobalsAA.
+    MIWP.addModulePass(
+        createModuleToFunctionPassAdaptor(InvalidateAnalysisPass<AAManager>()));
+  }
 
   // Require the ProfileSummaryAnalysis for the module so we can query it within
   // the inliner pass.
@@ -1016,9 +1018,11 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
   // and prior to optimizing globals.
   // FIXME: This position in the pipeline hasn't been carefully considered in
   // years, it should be re-analyzed.
+#if 0
   MPM.addPass(IPSCCPPass(IPSCCPOptions(/*AllowFuncSpec=*/
                                        Level != OptimizationLevel::Os &&
                                        Level != OptimizationLevel::Oz)));
+#endif
 
   // Attach metadata to indirect call sites indicating the set of functions
   // they may target at run-time. This should follow IPSCCP.
@@ -1631,9 +1635,11 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     // Propagate constants at call sites into the functions they call.  This
     // opens opportunities for globalopt (and inlining) by substituting function
     // pointers passed as arguments to direct uses of functions.
+#if 0
     MPM.addPass(IPSCCPPass(IPSCCPOptions(/*AllowFuncSpec=*/
                                          Level != OptimizationLevel::Os &&
                                          Level != OptimizationLevel::Oz)));
+#endif
 
     // Attach metadata to indirect call sites indicating the set of functions
     // they may target at run-time. This should follow IPSCCP.
@@ -1766,11 +1772,13 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
 
   // Require the GlobalsAA analysis for the module so we can query it within
   // MainFPM.
-  MPM.addPass(RequireAnalysisPass<GlobalsAA, Module>());
-  // Invalidate AAManager so it can be recreated and pick up the newly available
-  // GlobalsAA.
-  MPM.addPass(
-      createModuleToFunctionPassAdaptor(InvalidateAnalysisPass<AAManager>()));
+  if (EnableGlobalAnalyses) {
+    MPM.addPass(RequireAnalysisPass<GlobalsAA, Module>());
+    // Invalidate AAManager so it can be recreated and pick up the newly available
+    // GlobalsAA.
+    MPM.addPass(
+        createModuleToFunctionPassAdaptor(InvalidateAnalysisPass<AAManager>()));
+  }
 
   FunctionPassManager MainFPM;
   MainFPM.addPass(createFunctionToLoopPassAdaptor(
