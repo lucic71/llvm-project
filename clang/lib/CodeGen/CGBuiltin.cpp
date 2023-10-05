@@ -2820,6 +2820,9 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   }
   case Builtin::BI__assume:
   case Builtin::BI__builtin_assume: {
+    if (!CGM.getCodeGenOpts().DropUbBuiltins)
+      return RValue::get(nullptr);
+
     if (E->getArg(0)->HasSideEffects(getContext()))
       return RValue::get(nullptr);
 
