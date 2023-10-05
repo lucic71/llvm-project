@@ -5183,6 +5183,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   else
     CmdArgs.push_back("-fdrop-inbounds-from-gep");
 
+  if (!Args.hasFlag(options::OPT_fignore_pure_const_attrs,
+                   options::OPT_fno_ignore_pure_const_attrs, false))
+    CmdArgs.push_back("-fno-ignore-pure-const-attrs");
+  else
+    CmdArgs.push_back("-fignore-pure-const-attrs");
+
   if (!Args.hasFlag(options::OPT_fcheck_div_rem_overflow,
                    options::OPT_fno_check_div_rem_overflow, false))
     CmdArgs.push_back("-fno-check-div-rem-overflow");

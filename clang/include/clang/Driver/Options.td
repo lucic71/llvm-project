@@ -2018,6 +2018,12 @@ defm constrain_shift_value : BoolFOption<"constrain-shift-value",
   NegFlag<SetFalse, [], "Treat usage of oversized shift as undefined behavior (default)">,
   BothFlags<[CC1Option]>>;
 
+defm ignore_pure_const_attrs : BoolFOption<"ignore-pure-const-attrs",
+  CodeGenOpts<"IgnorePureConstAttrs">, DefaultFalse,
+  PosFlag<SetTrue, [], "Ignore pure and const function attributes">,
+  NegFlag<SetFalse, [], "Do not ignore pure and const function attributes (default)">,
+  BothFlags<[CC1Option]>>;
+
 defm drop_deref_attr : BoolFOption<"drop-deref-attr",
   CodeGenOpts<"DropDerefAttr">, DefaultFalse,
   PosFlag<SetTrue, [], "Drop dereferenceable attribute">,

@@ -531,6 +531,9 @@ CODEGENOPT(DropNoAliasRestrictAttr, 1, 0)
 /// Whether to drop UB-producing builtins.
 CODEGENOPT(DropUbBuiltins, 1, 0)
 
+/// Whether to ignore const and pure function attributes.
+CODEGENOPT(IgnorePureConstAttrs, 1, 0)
+
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT
