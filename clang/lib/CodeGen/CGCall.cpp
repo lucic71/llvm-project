@@ -2413,7 +2413,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       if (PTy->isObjectType()) {
         llvm::Align Alignment =
             getNaturalPointeeTypeAlignment(RetTy).getAsAlign();
-        if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+        if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
           RetAttrs.addAlignmentAttr(Alignment);
       }
     }
@@ -2429,7 +2429,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     hasUsedSRet = true;
     if (RetAI.getInReg())
       SRETAttrs.addAttribute(llvm::Attribute::InReg);
-    if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+    if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
       SRETAttrs.addAlignmentAttr(RetAI.getIndirectAlign().getQuantity());
     ArgAttrs[IRFunctionArgs.getSRetArgNo()] =
         llvm::AttributeSet::get(getLLVMContext(), SRETAttrs);
@@ -2477,7 +2477,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         getNaturalTypeAlignment(ThisTy, /*BaseInfo=*/nullptr,
                                 /*TBAAInfo=*/nullptr, /*forPointeeType=*/true)
             .getAsAlign();
-    if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+    if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
       Attrs.addAlignmentAttr(Alignment);
 
     ArgAttrs[IRArgs.first] = llvm::AttributeSet::get(getLLVMContext(), Attrs);
@@ -2522,7 +2522,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         Attrs.addAttribute(llvm::Attribute::Nest);
       else if (AI.getInReg())
         Attrs.addAttribute(llvm::Attribute::InReg);
-      if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+      if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
         Attrs.addStackAlignmentAttr(llvm::MaybeAlign(AI.getDirectAlign()));
       break;
 
@@ -2559,7 +2559,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
 
       // For now, only add this when we have a byval argument.
       // TODO: be less lazy about updating test cases.
-      if (AI.getIndirectByVal() && !(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+      if (AI.getIndirectByVal() && !(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
         Attrs.addAlignmentAttr(Align.getQuantity());
 
       // byval disables readnone and readonly.
@@ -2569,7 +2569,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     case ABIArgInfo::IndirectAliased: {
       CharUnits Align = AI.getIndirectAlign();
       Attrs.addByRefAttr(getTypes().ConvertTypeForMem(ParamType));
-      if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+      if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
         Attrs.addAlignmentAttr(Align.getQuantity());
       break;
     }
@@ -2596,7 +2596,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       if (PTy->isObjectType()) {
         llvm::Align Alignment =
             getNaturalPointeeTypeAlignment(ParamType).getAsAlign();
-      if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+      if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
         Attrs.addAlignmentAttr(Alignment);
       }
     }
@@ -2611,7 +2611,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
       if (!PTy->isIncompleteType() && PTy->isConstantSizeType()) {
         llvm::Align Alignment =
             getNaturalPointeeTypeAlignment(ParamType).getAsAlign();
-      if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+      if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
         Attrs.addAlignmentAttr(Alignment);
       }
     }
@@ -2637,7 +2637,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
         auto info = getContext().getTypeInfoInChars(PTy);
         if (!getCodeGenOpts().DropDerefAttr)
           Attrs.addDereferenceableAttr(info.Width.getQuantity());
-        if (!(getCodeGenOpts().DropAlignAttr && getMangledName(CalleeInfo.getCalleeDecl()).str() != getCodeGenOpts().DropAlignAttrExcludeFunc))
+        if (!(getCodeGenOpts().DropAlignAttr && Name != getCodeGenOpts().DropAlignAttrExcludeFunc))
           Attrs.addAlignmentAttr(info.Align.getAsAlign());
       }
       break;
