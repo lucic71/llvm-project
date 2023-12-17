@@ -180,6 +180,8 @@ public:
   /// Regexes separated by a semi-colon to filter the files to not instrument.
   std::string ProfileExcludeFiles;
 
+  std::string DropAlignAttrExcludeFunc;
+
   /// The version string to put into coverage files.
   char CoverageVersion[4];
 

@@ -1360,6 +1360,10 @@ def fprofile_exclude_files_EQ : Joined<["-"], "fprofile-exclude-files=">,
     HelpText<"Instrument only functions from files where names don't match all the regexes separated by a semi-colon">,
     MarshallingInfoString<CodeGenOpts<"ProfileExcludeFiles">>,
     ShouldParseIf<!strconcat(fprofile_arcs.KeyPath, "||", ftest_coverage.KeyPath)>;
+def fdrop_align_attr_exclude_func_EQ : Joined<["-"], "fdrop-align-attr-exclude-func=">,
+    Group<f_Group>, Flags<[CC1Option, CoreOption]>,
+    HelpText<"Functions listed in this flag will be skipped when dropping the align attribute">,
+    MarshallingInfoString<CodeGenOpts<"DropAlignAttrExcludeFunc">>;
 def fprofile_update_EQ : Joined<["-"], "fprofile-update=">,
     Group<f_Group>, Flags<[CC1Option, CoreOption]>, Values<"atomic,prefer-atomic,single">,
     MetaVarName<"<method>">, HelpText<"Set update method of profile counters">,
