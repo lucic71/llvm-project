@@ -180,6 +180,7 @@ public:
   /// Regexes separated by a semi-colon to filter the files to not instrument.
   std::string ProfileExcludeFiles;
 
+  /// Function names separated by semicolon to exclude them from droppin the align attribute
   std::string DropAlignAttrExcludeFunc;
 
   /// The version string to put into coverage files.
