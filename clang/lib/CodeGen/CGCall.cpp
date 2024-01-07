@@ -2669,6 +2669,17 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
   }
   assert(ArgNo == FI.arg_size());
 
+  //std::cout << "In function " << Name.str() << " shouldNotRemoveAlignAttr: " << shouldNotRemoveAlignAttr << " for arg: " << ArgNo << " !Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFunc.find(Name) == std::string::npos " << (!Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFunc.find(Name) == std::string::npos) << "\n";
+
+  for (unsigned i = 0; i < IRFunctionArgs.totalIRArgs(); i++) {
+    bool shouldRemoveAlignAttr = getCodeGenOpts().DropAlignAttr &&
+      (!Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFunc.find(Name) != std::string::npos) &&
+      getCodeGenOpts().DropAlignAttrExcludeFuncArgsNo.find(std::to_string(i)) == std::string::npos;
+
+    if (shouldRemoveAlignAttr)
+      ArgAttrs[i] = ArgAttrs[i].removeAttribute(getLLVMContext(), llvm::Attribute::Alignment);
+  }
+
   AttrList = llvm::AttributeList::get(
       getLLVMContext(), llvm::AttributeSet::get(getLLVMContext(), FuncAttrs),
       llvm::AttributeSet::get(getLLVMContext(), RetAttrs), ArgAttrs);
@@ -3134,6 +3145,17 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
         ArgVals.push_back(ParamValue::forDirect(U));
       }
       break;
+    }
+  }
+
+  for (unsigned i = 0; i < IRFunctionArgs.totalIRArgs(); i++) {
+    bool shouldRemoveAlignAttr = CGM.getCodeGenOpts().DropAlignAttr &&
+      (!Fn->getName().str().empty() && CGM.getCodeGenOpts().DropAlignAttrExcludeFunc.find(Fn->getName().str()) != std::string::npos) &&
+      CGM.getCodeGenOpts().DropAlignAttrExcludeFuncArgsNo.find(std::to_string(i)) == std::string::npos;
+
+    if (shouldRemoveAlignAttr) {
+      auto AI = Fn->getArg(i);
+      AI->removeAttr(llvm::Attribute::Alignment);
     }
   }
 

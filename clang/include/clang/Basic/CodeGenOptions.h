@@ -183,6 +183,8 @@ public:
   /// Function names separated by semicolon to exclude them from droppin the align attribute
   std::string DropAlignAttrExcludeFunc;
 
+  std::string DropAlignAttrExcludeFuncArgsNo;
+
   /// The version string to put into coverage files.
   char CoverageVersion[4];
 

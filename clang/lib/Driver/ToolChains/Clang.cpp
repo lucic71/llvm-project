@@ -859,6 +859,12 @@ static void addPGOAndCoverageFlags(const ToolChain &TC, Compilation &C,
     CmdArgs.push_back(Args.MakeArgString(Twine("-fdrop-align-attr-exclude-func=" + v)));
   }
 
+  if (Args.hasArg(options::OPT_fdrop_align_attr_exclude_func_args_no_EQ)) {
+    auto *Arg = Args.getLastArg(options::OPT_fdrop_align_attr_exclude_func_args_no_EQ);
+    StringRef v = Arg->getValue();
+    CmdArgs.push_back(Args.MakeArgString(Twine("-fdrop-align-attr-exclude-func-args-no=" + v)));
+  }
+
   if (Args.hasArg(options::OPT_fprofile_filter_files_EQ)) {
     auto *Arg = Args.getLastArg(options::OPT_fprofile_filter_files_EQ);
     if (!Args.hasArg(options::OPT_coverage))

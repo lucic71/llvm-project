@@ -1364,6 +1364,10 @@ def fdrop_align_attr_exclude_func_EQ : Joined<["-"], "fdrop-align-attr-exclude-f
     Group<f_Group>, Flags<[CC1Option, CoreOption]>,
     HelpText<"Functions listed in this flag will be skipped when dropping the align attribute">,
     MarshallingInfoString<CodeGenOpts<"DropAlignAttrExcludeFunc">>;
+def fdrop_align_attr_exclude_func_args_no_EQ : Joined<["-"], "fdrop-align-attr-exclude-func-args-no=">,
+    Group<f_Group>, Flags<[CC1Option, CoreOption]>,
+    HelpText<"Combined with -fdrop-align-attr-exclude-func, exclude alignment for all arguments excluding the one at index no">,
+    MarshallingInfoString<CodeGenOpts<"DropAlignAttrExcludeFuncArgsNo">>;
 def fprofile_update_EQ : Joined<["-"], "fprofile-update=">,
     Group<f_Group>, Flags<[CC1Option, CoreOption]>, Values<"atomic,prefer-atomic,single">,
     MetaVarName<"<method>">, HelpText<"Set update method of profile counters">,
