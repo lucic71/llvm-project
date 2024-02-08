@@ -2669,11 +2669,10 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
   }
   assert(ArgNo == FI.arg_size());
 
-  //std::cout << "In function " << Name.str() << " shouldNotRemoveAlignAttr: " << shouldNotRemoveAlignAttr << " for arg: " << ArgNo << " !Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFunc.find(Name) == std::string::npos " << (!Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFunc.find(Name) == std::string::npos) << "\n";
 
   for (unsigned i = 0; i < IRFunctionArgs.totalIRArgs(); i++) {
     bool shouldRemoveAlignAttr = getCodeGenOpts().DropAlignAttr &&
-      (!Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFunc.find(Name) != std::string::npos) &&
+      (!Name.empty() && getCodeGenOpts().DropAlignAttrExcludeFuncArgs.find(Name) != std::string::npos) &&
       getCodeGenOpts().DropAlignAttrExcludeFuncArgsNo.find(std::to_string(i)) == std::string::npos;
 
     if (shouldRemoveAlignAttr)
@@ -3150,7 +3149,7 @@ void CodeGenFunction::EmitFunctionProlog(const CGFunctionInfo &FI,
 
   for (unsigned i = 0; i < IRFunctionArgs.totalIRArgs(); i++) {
     bool shouldRemoveAlignAttr = CGM.getCodeGenOpts().DropAlignAttr &&
-      (!Fn->getName().str().empty() && CGM.getCodeGenOpts().DropAlignAttrExcludeFunc.find(Fn->getName().str()) != std::string::npos) &&
+      (!Fn->getName().str().empty() && CGM.getCodeGenOpts().DropAlignAttrExcludeFuncArgs.find(Fn->getName().str()) != std::string::npos) &&
       CGM.getCodeGenOpts().DropAlignAttrExcludeFuncArgsNo.find(std::to_string(i)) == std::string::npos;
 
     if (shouldRemoveAlignAttr) {
