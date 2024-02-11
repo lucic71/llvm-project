@@ -127,6 +127,7 @@
 #include "llvm/Transforms/Vectorize/LoopVectorize.h"
 #include "llvm/Transforms/Vectorize/SLPVectorizer.h"
 #include "llvm/Transforms/Vectorize/VectorCombine.h"
+#include "llvm/Transforms/Utils/DropTbaaFromFunc.h"
 
 using namespace llvm;
 
@@ -957,6 +958,7 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
   FunctionPassManager EarlyFPM;
   // Lower llvm.expect to metadata before attempting transforms.
   // Compare/branch metadata may alter the behavior of passes like SimplifyCFG.
+  EarlyFPM.addPass(DropTbaaFromFuncPass());
   EarlyFPM.addPass(LowerExpectIntrinsicPass());
   EarlyFPM.addPass(SimplifyCFGPass());
   EarlyFPM.addPass(SROAPass(SROAOptions::ModifyCFG));
