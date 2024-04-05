@@ -2211,8 +2211,7 @@ void CodeGenModule::ConstructAttributeList(StringRef Name,
     bool EnableIgnorePureConstAttrs = !getCodeGenOpts().IgnorePureConstAttrs;
     if (const FunctionDecl *Fn = dyn_cast<FunctionDecl>(TargetDecl)) {
        auto FSL = FullSourceLoc(Fn->getLocation(), getContext().getSourceManager());
-       if (FSL.isValid())
-         EnableIgnorePureConstAttrs |= FSL.isInSystemHeader();
+       if (FSL.isValid()) EnableIgnorePureConstAttrs |= FSL.isInSystemHeader();
     }
 
     // 'const', 'pure' and 'noalias' attributed functions are also nounwind.

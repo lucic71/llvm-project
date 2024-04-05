@@ -609,15 +609,15 @@ protected:
   void addMetadata(StringRef Kind, MDNode &MD);
   /// @}
 
+  /// Erase all metadata attached to this Value.
+  void clearMetadata();
+
+public:
   /// Erase all metadata attachments with the given kind.
   ///
   /// \returns true if any metadata was removed.
   bool eraseMetadata(unsigned KindID);
 
-  /// Erase all metadata attached to this Value.
-  void clearMetadata();
-
-public:
   /// Return true if this value is a swifterror value.
   ///
   /// swifterror values can be either a function argument or an alloca with a
